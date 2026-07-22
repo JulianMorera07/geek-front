@@ -1,0 +1,140 @@
+'use client';
+
+import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query';
+
+import {
+  fetchAnimeById,
+  fetchAnimeEpisodes,
+  fetchCatalog,
+  fetchCatalogFacets,
+  fetchGenreById,
+  fetchGenres,
+  fetchLatest,
+  fetchPopular,
+  fetchSearch,
+} from '@/features/anime/api/http-client';
+import type { CatalogQueryParams } from '@/features/anime/api/types';
+
+/** Query keys centralizadas del dominio anime. */
+export const animeKeys = {
+  all: ['anime'] as const,
+  catalog: (params: Omit<CatalogQueryParams, 'page'>) =>
+    [...animeKeys.all, 'catalog', params] as const,
+  detail: (id: string) => [...animeKeys.all, 'detail', id] as const,
+  episodes: (animeId: string) => [...animeKeys.all, animeId, 'episodes'] as const,
+  genres: () => ['genres'] as const,
+  genre: (id: string) => ['genres', id] as const,
+  facets: () => ['catalog-facets'] as const,
+  discoveryPopular: () => ['discovery', 'popular'] as const,
+  discoveryLatest: () => ['discovery', 'latest'] as const,
+  discoverySearch: (q: string) => ['discovery', 'search', q] as const,
+};
+
+/** Catálogo interno con scroll infinito (`total` real → `hasNextPage` exacto, no heurístico). */
+export function useCatalogInfiniteQuery(params: Omit<CatalogQueryParams, 'page'>) {
+  return useInfiniteQuery({
+    queryKey: animeKeys.catalog(params),
+    queryFn: ({ pageParam }) => fetchCatalog({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
+  });
+}
+
+export function useAnimeDetailQuery(animeId: string) {
+  return useQuery({
+    queryKey: animeKeys.detail(animeId),
+    queryFn: () => fetchAnimeById(animeId),
+    staleTime: 60_000,
+  });
+}
+
+/** El backend no pagina episodios (siempre devuelve todos) — se pagina solo en el cliente. */
+export function useAnimeEpisodesQuery(animeId: string) {
+  return useQuery({
+    queryKey: animeKeys.episodes(animeId),
+    queryFn: () => fetchAnimeEpisodes(animeId),
+    staleTime: 60_000,
+  });
+}
+
+/** Detalle de cada anime relacionado (`relations[]` solo trae ids) — fetch en paralelo, acotado. */
+export function useRelatedAnimesQuery(animeIds: string[]) {
+  return useQueries({
+    queries: animeIds.map((id) => ({
+      queryKey: animeKeys.detail(id),
+      queryFn: () => fetchAnimeById(id),
+      staleTime: 60_000,
+    })),
+  });
+}
+
+export function useGenresQuery() {
+  return useQuery({ queryKey: animeKeys.genres(), queryFn: fetchGenres, staleTime: 5 * 60_000 });
+}
+
+export function useGenreQuery(genreId: string) {
+  return useQuery({
+    queryKey: animeKeys.genre(genreId),
+    queryFn: () => fetchGenreById(genreId),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Opciones para armar filtros (tipos/estados/géneros/...) sin N+1 queries. */
+export function useCatalogFacetsQuery() {
+  return useQuery({
+    queryKey: animeKeys.facets(),
+    queryFn: fetchCatalogFacets,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * `/popular` y `/latest` (Provider Framework) no devuelven `total` — se
+ * infiere que hay más páginas si la última trajo un página completa.
+ */
+function inferHasNextPage(lastPageItems: unknown[], pageSize: number): boolean {
+  return lastPageItems.length >= pageSize;
+}
+
+const DISCOVERY_PAGE_SIZE = 20;
+
+export function usePopularInfiniteQuery() {
+  return useInfiniteQuery({
+    queryKey: animeKeys.discoveryPopular(),
+    queryFn: ({ pageParam }) => fetchPopular({ page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+  });
+}
+
+export function useLatestInfiniteQuery() {
+  return useInfiniteQuery({
+    queryKey: animeKeys.discoveryLatest(),
+    queryFn: ({ pageParam }) => fetchLatest({ page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+  });
+}
+
+/**
+ * Búsqueda contra el Provider Framework (`GET /search`) — se usa como respaldo
+ * cuando el catálogo interno no tiene resultados para el término buscado
+ * (hoy: siempre, porque el catálogo interno está vacío). `enabled` exige `q`
+ * no vacío porque el backend rechaza `q` vacío con 422.
+ */
+export function useSearchInfiniteQuery(q: string) {
+  const trimmed = q.trim();
+  return useInfiniteQuery({
+    queryKey: animeKeys.discoverySearch(trimmed),
+    queryFn: ({ pageParam }) =>
+      fetchSearch({ q: trimmed, page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+    enabled: trimmed.length > 0,
+  });
+}
