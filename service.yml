@@ -27,5 +27,3 @@ service:
   networks:
     - name: geek
       create: false
-    - name: proxy
-      create: false
