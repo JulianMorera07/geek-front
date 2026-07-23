@@ -13,17 +13,21 @@
 // export default nextConfig;
 
 /** @type {import('next').NextConfig} */
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',    // ← esto genera .next/standalone
-  
+  output: 'standalone',
+
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+  },
+
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.BACKEND_INTERNAL_URL}/:path*`,
+        destination: 'http://geek-back:8000/api/:path*',
       },
     ]
   },
 }
-
 module.exports = nextConfig
