@@ -14,6 +14,8 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',    // ← esto genera .next/standalone
+  
   async rewrites() {
     return [
       {
