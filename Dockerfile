@@ -28,14 +28,14 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=80
+ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-EXPOSE 80
+EXPOSE 3000
 
 # Permite a un orquestador (Docker/ECS/K8s) detectar cuándo el server ya
 # levantó y sirve — `wget` viene con busybox en `alpine`, sin instalar nada extra.
