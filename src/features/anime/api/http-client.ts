@@ -18,7 +18,7 @@ import type {
   StreamingSource,
 } from '@/features/anime/api/types';
 
-const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
 
 /**
  * Algunos endpoints del Provider Framework pueden tardar muchísimo (llaman a

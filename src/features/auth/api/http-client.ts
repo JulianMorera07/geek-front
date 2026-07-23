@@ -9,7 +9,7 @@ import type {
   User,
 } from '@/features/auth/api/types';
 
-const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
 
 // Formas crudas (snake_case) del backend.
 interface RawRole {
