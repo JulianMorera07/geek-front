@@ -42,7 +42,17 @@ async function apiFetch<T>(
   params?: Record<string, string | undefined>,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
 ): Promise<T> {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  // new URL() requiere una URL absoluta.
+  // Si API_BASE_URL es relativa (/api/v1):
+  //   - En el browser usamos window.location.origin como base
+  //   - En el servidor (SSR/Node.js) usamos http://localhost:3000
+  const base = API_BASE_URL.startsWith('http')
+    ? API_BASE_URL
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}${API_BASE_URL}`
+      : `http://localhost:3000${API_BASE_URL}`;
+
+  const url = new URL(`${base}${path}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== '') url.searchParams.set(key, value);
