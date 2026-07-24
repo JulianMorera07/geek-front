@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Badge } from '@/components/base/badge';
-import { Button } from '@/components/base/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { DiscoveryResult } from '@/features/anime/api/types';
 
 interface DiscoveryBannerProps {
