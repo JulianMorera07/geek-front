@@ -1,4 +1,4 @@
-import { httpRequest } from '@/lib/http';
+import { httpRequest, resolveApiBaseUrl, resolveMediaUrl } from '@/lib/http';
 import type {
   AuthResult,
   LoginInput,
@@ -9,7 +9,7 @@ import type {
   User,
 } from '@/features/auth/api/types';
 
-const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
+const API_BASE_URL = resolveApiBaseUrl();
 
 // Formas crudas (snake_case) del backend.
 interface RawRole {
@@ -61,7 +61,7 @@ function mapUser(raw: RawUser): User {
     permissions: raw.permissions,
     profile: {
       displayName: raw.profile.display_name,
-      avatarUrl: raw.profile.avatar_url,
+      avatarUrl: resolveMediaUrl(raw.profile.avatar_url),
       bio: raw.profile.bio,
     },
     settings: {

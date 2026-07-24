@@ -1,4 +1,4 @@
-import { httpRequest } from '@/lib/http';
+import { httpRequest, resolveApiBaseUrl, resolveMediaUrl } from '@/lib/http';
 import type {
   AudioTrack,
   EpisodePlayback,
@@ -11,7 +11,7 @@ import type {
   WatchProgress,
 } from '@/features/playback/api/types';
 
-const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
+const API_BASE_URL = resolveApiBaseUrl();
 
 // Formas crudas (snake_case) del backend.
 interface RawAudioTrack {
@@ -111,7 +111,7 @@ function mapEpisodePlayback(raw: RawEpisodePlayback): EpisodePlayback {
       seasonNumber: raw.metadata.season_number,
       episodeNumber: raw.metadata.episode_number,
       durationSeconds: raw.metadata.duration_seconds,
-      thumbnailUrl: raw.metadata.thumbnail_url,
+      thumbnailUrl: resolveMediaUrl(raw.metadata.thumbnail_url),
     },
     sources: raw.sources.map(mapSource),
     availableQualities: raw.available_qualities,

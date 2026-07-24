@@ -2,6 +2,42 @@ import { ApiError } from '@/lib/api-error';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+/**
+ * `BACKEND_INTERNAL_URL` apunta al backend por su nombre en la network interna
+ * de Docker/Podman (ej. `http://geek-back:8000/api/v1`) — no es un DNS público,
+ * el navegador nunca podría resolverlo. Next.js ya evita inlinear variables
+ * sin prefijo `NEXT_PUBLIC_` en el bundle de cliente, pero este check explícito
+ * no depende de ese detalle interno: en el navegador siempre se pide la ruta
+ * relativa `/api/v1`, que cae en el propio servidor Next y sale por el
+ * rewrite de `next.config.ts` hacia el backend interno. El server (RSC) sí usa
+ * la URL interna directo, sin pasar por el rewrite.
+ */
+export function resolveApiBaseUrl(): string {
+  if (typeof window !== 'undefined') return '/api/v1';
+  return process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
+}
+
+/**
+ * Algunas respuestas del backend traen URLs absolutas de medios propios
+ * (thumbnails/avatares subidos al backend, no de un provider externo como
+ * Jikan) apuntando al hostname interno de Docker/Podman (ej.
+ * `http://geek-back:8000/media/x.jpg`) — el navegador nunca puede resolver
+ * ese host. Los providers externos documentados siempre son `https`, así que
+ * cualquier URL `http://` se asume interna y se reescribe para pasar por el
+ * proxy same-origin `/api/media-proxy`, que sí vive en la network interna.
+ * URLs `https://` (o relativas) se devuelven tal cual.
+ */
+export function resolveMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (!/^http:\/\//i.test(url)) return url;
+  try {
+    const parsed = new URL(url);
+    return `/api/media-proxy?u=${encodeURIComponent(parsed.pathname + parsed.search)}`;
+  } catch {
+    return url;
+  }
+}
+
 export interface HttpRequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;

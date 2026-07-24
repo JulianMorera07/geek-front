@@ -43,7 +43,16 @@ En desarrollo verás un botón flotante de **React Query Devtools** (esquina inf
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `BACKEND_INTERNAL_URL` | `http://localhost:8000/api/v1` | URL base del backend (incluye el prefijo `/api/v1`). Se usa tanto en Server Components como en el cliente. |
+| `BACKEND_INTERNAL_URL` | `http://localhost:8000/api/v1` | URL base del backend (incluye el prefijo `/api/v1`). Solo se usa server-side (RSC) — el navegador nunca la ve, ver nota abajo. |
+| `BACKEND_INTERNAL_HOST` | `geek-back:8000` | Host:puerto del backend en la network interna de Docker, usado por el `rewrite` de `/api/*` (para requests que salen del navegador). Runtime env, no requiere rebuild. Ajustar al nombre real del servicio si el compose no usa `geek-back`. |
+
+**Por qué el navegador nunca usa `BACKEND_INTERNAL_URL` directo**: es un nombre de host interno de
+Docker (ej. `geek-back`), no resuelve DNS fuera de esa network. Si el bundle del cliente lo llevara
+literal, todo fetch hecho desde el navegador (scroll infinito, reproductor) fallaría con
+`NETWORK_ERROR` aunque el SSR funcione perfecto. Por eso `resolveApiBaseUrl()` (`src/lib/http.ts`)
+devuelve `/api/v1` en el navegador siempre — esa ruta relativa cae en el propio servidor Next, que la
+reescribe hacia `http://${BACKEND_INTERNAL_HOST}/api/*` (`next.config.ts`). El server (RSC) sigue
+usando `BACKEND_INTERNAL_URL` completa, sin pasar por el rewrite.
 
 ## Scripts
 

@@ -22,10 +22,15 @@ const nextConfig = {
   },
 
   async rewrites() {
+    // Host:puerto del backend en la network interna de Docker. Se lee en
+    // runtime (el `runner` stage del Dockerfile no fija `BACKEND_INTERNAL_URL`,
+    // así que esto puede setearse con `-e` sin rebuildear la imagen si el
+    // nombre del servicio en el compose real difiere de `geek-back`).
+    const backendHost = process.env.BACKEND_INTERNAL_HOST ?? 'geek-back:8000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://geek-back:8000/api/:path*',
+        destination: `http://${backendHost}/api/:path*`,
       },
     ]
   },

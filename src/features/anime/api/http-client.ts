@@ -1,4 +1,6 @@
 import { ApiError } from '@/lib/api-error';
+import { resolveMediaUrl } from '@/lib/http';
+import { resolveApiBaseUrl } from '@/lib/http';
 import type {
   AnimeDetail,
   AnimeSummary,
@@ -18,7 +20,7 @@ import type {
   StreamingSource,
 } from '@/features/anime/api/types';
 
-const API_BASE_URL = process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
+const API_BASE_URL = resolveApiBaseUrl();
 
 /**
  * Algunos endpoints del Provider Framework pueden tardar muchísimo (llaman a
@@ -116,7 +118,7 @@ function mapRating(raw: RawRating | null | undefined): Rating | null {
 }
 
 function mapMedia(raw: RawMedia[] | undefined): Media[] {
-  return (raw ?? []).map((m) => ({ kind: m.kind, url: m.url }));
+  return (raw ?? []).map((m) => ({ kind: m.kind, url: resolveMediaUrl(m.url) ?? m.url }));
 }
 
 function mapExternalIds(raw: RawExternalId[] | undefined): ExternalId[] {
@@ -144,7 +146,7 @@ function mapAnimeSummary(raw: RawAnimeSummary): AnimeSummary {
     type: raw.type,
     status: raw.status,
     countryCode: raw.country_code ?? null,
-    thumbnailUrl: raw.thumbnail_url ?? null,
+    thumbnailUrl: resolveMediaUrl(raw.thumbnail_url),
     rating: mapRating(raw.rating),
   };
 }
@@ -174,7 +176,7 @@ function mapAnimeDetail(raw: RawAnimeDetail): AnimeDetail {
     producerIds: raw.producer_ids ?? [],
     tagIds: raw.tag_ids ?? [],
     media: mapMedia(raw.media),
-    bannerUrl: raw.banner_url ?? null,
+    bannerUrl: resolveMediaUrl(raw.banner_url),
     trailerUrl: raw.trailer_url ?? null,
     externalIds: mapExternalIds(raw.external_ids),
     relations: mapRelations(raw.relations),
@@ -205,7 +207,7 @@ function mapGenre(raw: RawGenre): Genre {
 function mapDiscoveryResult(raw: RawDiscoveryResult): DiscoveryResult {
   return {
     title: raw.title,
-    thumbnailUrl: raw.thumbnail_url ?? null,
+    thumbnailUrl: resolveMediaUrl(raw.thumbnail_url),
     animeType: raw.anime_type ?? null,
     year: raw.year ?? null,
     sources: (raw.sources ?? []).map((s) => ({
