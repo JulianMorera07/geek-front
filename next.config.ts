@@ -19,6 +19,15 @@ const nextConfig = {
 
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
+    // El optimizador de Next (`/_next/image`) usa `sharp`/`libvips`, cuyo
+    // binario precompilado asume instrucciones AVX. El host de producción
+    // corre en hardware real sin AVX (confirmado con `lscpu` — un Pentium
+    // Dual-Core de 2010) y cualquier imagen que pasara por el optimizador
+    // mataba el proceso entero de Node con SIGILL (`trap invalid opcode ...
+    // libvips-cpp.so`), tumbando el sitio completo, no solo esa imagen.
+    // Las imágenes ya vienen de providers externos que no controlamos, así
+    // que no hay pérdida real de optimización propia al desactivarlo.
+    unoptimized: true,
   },
 
   // El proxy hacia el backend interno para `/api/v1/*` ya NO vive acá como
