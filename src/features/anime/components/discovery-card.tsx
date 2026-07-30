@@ -56,13 +56,12 @@ function DiscoveryCard({ result, className }: Readonly<DiscoveryCardProps>) {
           {[result.year, result.animeType].filter(Boolean).join(' · ') || 'Externo'}
         </p>
       </div>
-      {result.sources.length > 0 ? (
+      {result.sources.length > 1 ? (
         <div className="flex flex-wrap gap-1">
-          {result.sources.slice(0, 2).map((source) => (
-            <Badge key={source.providerId} variant="outline" className="text-[10px]">
-              {source.providerId}
-            </Badge>
-          ))}
+          {/* Cantidad de servidores, no el proveedor real (tioanime/jkanime) — no exponemos marcas de terceros en la UI. */}
+          <Badge variant="outline" className="text-[10px]">
+            {result.sources.length} servidores
+          </Badge>
         </div>
       ) : null}
     </>

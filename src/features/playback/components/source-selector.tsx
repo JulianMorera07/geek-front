@@ -18,9 +18,14 @@ export interface SourceSelectorProps {
   onChange: (sourceId: string) => void;
 }
 
-function sourceLabel(source: PlaybackSource): string {
+/**
+ * "Servidor N" por posición, NO `source.serverName` — ese campo viene del
+ * backend con el nombre real del proveedor/embed (ej. "tioanime", "jkanime"),
+ * y no queremos exponer marcas de terceros en la UI (decisión de producto).
+ */
+function sourceLabel(source: PlaybackSource, index: number): string {
   const audio = source.audio.languageCode ? ` · ${source.audio.languageCode.toUpperCase()}` : '';
-  return `${source.serverName} · ${qualityLabel(source.quality)}${audio}`;
+  return `Servidor ${index + 1} · ${qualityLabel(source.quality)}${audio}`;
 }
 
 /**
@@ -43,15 +48,15 @@ function SourceSelector({ sources, value, onChange }: SourceSelectorProps) {
         <ServerIcon className="text-muted-foreground" />
         <SelectValue placeholder="Servidor">
           {(selected: string | null) => {
-            const source = sources.find((s) => s.id === selected);
-            return source ? sourceLabel(source) : 'Servidor';
+            const index = sources.findIndex((s) => s.id === selected);
+            return index >= 0 ? sourceLabel(sources[index], index) : 'Servidor';
           }}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {sources.map((source) => (
+        {sources.map((source, index) => (
           <SelectItem key={source.id} value={source.id} disabled={!source.isActive}>
-            {sourceLabel(source)}
+            {sourceLabel(source, index)}
           </SelectItem>
         ))}
       </SelectContent>

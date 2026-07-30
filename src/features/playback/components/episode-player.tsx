@@ -17,6 +17,7 @@ import {
   useSelectPlaybackSubtitleMutation,
 } from '@/features/playback/api/queries';
 import { VideoPlayer } from '@/features/playback/components/video-player';
+import { LanguageSelector } from '@/features/playback/components/language-selector';
 import { SourceSelector } from '@/features/playback/components/source-selector';
 import { SubtitleSelector } from '@/features/playback/components/subtitle-selector';
 import { EpisodeNavigation } from '@/features/playback/components/episode-navigation';
@@ -27,6 +28,20 @@ import type { EpisodePlayback, EpisodeReference, PlaybackSource } from '@/featur
 const PROGRESS_SAVE_INTERVAL_MS = 10_000;
 /** Estimado cuando el backend no informa duración real (típico en fuentes externas): ~24 min. */
 const DEFAULT_EPISODE_DURATION_SECONDS = 24 * 60;
+
+/**
+ * El mensaje de error del backend puede nombrar el proveedor externo real
+ * (ej. "Rate limit excedido para el provider 'tioanime'") — no queremos
+ * exponer marcas de terceros en la UI. Genérico a propósito (no hardcodea
+ * "tioanime"/"jkanime") para que siga funcionando si el backend agrega o
+ * cambia proveedores sin avisar.
+ */
+function sanitizeErrorMessage(message: string): string {
+  return message
+    .replace(/\bel provider ['"][^'"]*['"]/gi, 'el proveedor')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
 
 export interface EpisodePlayerProps {
   /**
@@ -81,6 +96,7 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
   const selectSubtitle = useSelectPlaybackSubtitleMutation();
   const saveProgress = useSavePlaybackProgressMutation();
 
+  const [manualLanguage, setManualLanguage] = React.useState<string | null>(null);
   const [manualSourceId, setManualSourceId] = React.useState<string | null>(null);
   const [manualSubtitle, setManualSubtitle] = React.useState<{
     sourceId: string;
@@ -108,6 +124,7 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
   // estado durante el render, no en un efecto — ver nota de más abajo).
   if (trackedWatchKey !== watchKey) {
     setTrackedWatchKey(watchKey);
+    setManualLanguage(null);
     setManualSourceId(null);
     setManualSubtitle(null);
     setSessionId(getStoredSessionId(watchKey));
@@ -115,8 +132,23 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
 
   const sources = playbackQuery.data?.sources ?? [];
   const defaultSource = sources.find((s) => s.isActive) ?? sources[0];
+
+  // Idiomas de audio distintos disponibles entre las fuentes (orden de
+  // aparición). El selector de idioma filtra qué fuentes puede ofrecer
+  // `SourceSelector` — separa "qué idioma quiero" de "qué servidor uso".
+  const availableLanguages = Array.from(
+    new Set(sources.map((s) => s.audio.languageCode).filter((code): code is string => Boolean(code))),
+  );
+  const defaultLanguage = defaultSource?.audio.languageCode ?? sources[0]?.audio.languageCode ?? null;
+  const selectedLanguage = manualLanguage ?? defaultLanguage;
+  const sourcesForLanguage = selectedLanguage
+    ? sources.filter((s) => s.audio.languageCode === selectedLanguage)
+    : sources;
+
   const currentSource: PlaybackSource | undefined =
-    sources.find((s) => s.id === manualSourceId) ?? defaultSource;
+    sourcesForLanguage.find((s) => s.id === manualSourceId) ??
+    sourcesForLanguage.find((s) => s.isActive) ??
+    sourcesForLanguage[0];
   const defaultSubtitleLanguage =
     currentSource?.subtitles.find((s) => s.isDefault)?.languageCode ?? null;
   const subtitleLanguage =
@@ -182,6 +214,15 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-arranca el timer al cambiar de sesión/fuente o al llegar el resume point; no en cada cambio de `saveProgress`.
   }, [sessionId, currentSource?.id, resumePointQuery.data]);
 
+  function handleLanguageChange(languageCode: string) {
+    setManualLanguage(languageCode);
+    // Al cambiar de idioma, el servidor/subtítulo elegidos a mano ya no
+    // aplican necesariamente (pueden pertenecer al idioma anterior) — se
+    // recalculan al valor por defecto del nuevo idioma.
+    setManualSourceId(null);
+    setManualSubtitle(null);
+  }
+
   function handleSourceChange(nextSourceId: string) {
     setManualSourceId(nextSourceId);
     setManualSubtitle(null);
@@ -224,10 +265,9 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
       <ErrorView
         title="No pudimos cargar el reproductor"
         // El backend ya manda un mensaje específico y accionable (ej. "Rate
-        // limit excedido para el provider 'tioanime'") — mostrarlo tal cual
-        // es más útil que un texto genérico fijo, sin acoplarse a códigos
-        // de error frágiles para detectar casos puntuales.
-        description={playbackQuery.error.message}
+        // limit excedido...") — mostrarlo es más útil que un texto genérico
+        // fijo, pero saneado para no exponer el nombre del proveedor externo.
+        description={sanitizeErrorMessage(playbackQuery.error.message)}
         onRetry={() => playbackQuery.refetch()}
       />
     );
@@ -266,8 +306,13 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
       ) : null}
 
       <div className="flex flex-wrap gap-2">
+        <LanguageSelector
+          languages={availableLanguages}
+          value={selectedLanguage}
+          onChange={handleLanguageChange}
+        />
         <SourceSelector
-          sources={sources}
+          sources={sourcesForLanguage}
           value={currentSource?.id ?? null}
           onChange={handleSourceChange}
         />
