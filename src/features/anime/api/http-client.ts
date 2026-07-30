@@ -12,6 +12,7 @@ import type {
   ExternalId,
   Genre,
   Media,
+  NewAnimesQueryParams,
   Page,
   Rating,
   Relation,
@@ -224,6 +225,7 @@ function mapDiscoveryResult(raw: RawDiscoveryResult): DiscoveryResult {
       externalId: s.external_id,
       priority: s.priority,
       responseTimeMs: s.response_time_ms,
+      episodeNumber: s.episode_number ?? null,
     })),
     completenessScore: raw.completeness_score,
     qualityScore: raw.quality_score,
@@ -318,6 +320,7 @@ interface RawSourceReference {
   external_id: string;
   priority: number;
   response_time_ms: number;
+  episode_number?: number | null;
 }
 interface RawDiscoveryResult {
   title: string;
@@ -438,10 +441,28 @@ export async function fetchPopular(params: DiscoveryQueryParams = {}): Promise<D
   return raw.map(mapDiscoveryResult);
 }
 
+/** `sources[].episodeNumber` viene poblado acá — son episodios recién publicados, no series nuevas (ver `fetchNewAnimes`). */
 export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<DiscoveryResult[]> {
   const raw = await apiFetch<RawDiscoveryResult[]>('/latest', {
     page: String(params.page ?? 1),
     page_size: String(params.pageSize ?? 20),
+  });
+  return raw.map(mapDiscoveryResult);
+}
+
+/**
+ * GET /new-animes — series nuevas agregadas al catálogo (no episodios).
+ * `type` filtra por "Movie"/"OVA"/"Special" (pestañas de novedades). `sources[].episodeNumber`
+ * siempre viene `null` acá — esto lista series, no capítulos (ver `fetchLatest`).
+ */
+export async function fetchNewAnimes(
+  params: NewAnimesQueryParams = {},
+): Promise<DiscoveryResult[]> {
+  const raw = await apiFetch<RawDiscoveryResult[]>('/new-animes', {
+    page: String(params.page ?? 1),
+    page_size: String(params.pageSize ?? 20),
+    provider_ids: params.providerIds?.length ? params.providerIds.join(',') : undefined,
+    type: params.type,
   });
   return raw.map(mapDiscoveryResult);
 }

@@ -130,6 +130,8 @@ export interface SourceReference {
   externalId: string;
   priority: number;
   responseTimeMs: number;
+  /** Solo viene poblado en `/latest` (episodios recién publicados) — `null` en `/popular`, `/new-animes` y `/search`, que listan series, no capítulos. */
+  episodeNumber: number | null;
 }
 
 export interface DiscoveryResult {
@@ -161,6 +163,15 @@ export interface CatalogQueryParams {
 export interface DiscoveryQueryParams {
   page?: number;
   pageSize?: number;
+}
+
+/** Tipos aceptados por `type` en `GET /new-animes` (pestañas "Películas/Ovas/Especiales nuevos"). */
+export type NewAnimeType = 'Movie' | 'OVA' | 'Special';
+
+/** `GET /new-animes` — series nuevas agregadas al catálogo (no episodios, ver `/latest`). */
+export interface NewAnimesQueryParams extends DiscoveryQueryParams {
+  providerIds?: string[];
+  type?: NewAnimeType;
 }
 
 /** `GET /search` (Provider Framework) — a diferencia de `/latest`/`/popular`, `q` es obligatorio. */

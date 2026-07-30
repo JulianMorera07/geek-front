@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   createPlaybackSession,
   fetchEpisodePlayback,
+  fetchExternalEpisodePlayback,
   fetchNextEpisode,
   fetchPlaybackResumePoint,
   fetchPreviousEpisode,
@@ -18,16 +19,31 @@ export const playbackKeys = {
   all: ['playback'] as const,
   episode: (animeId: string, episodeId: string) =>
     [...playbackKeys.all, 'episode', animeId, episodeId] as const,
+  externalEpisode: (providerId: string, externalId: string, episodeNumber: number) =>
+    [...playbackKeys.all, 'external-episode', providerId, externalId, episodeNumber] as const,
   adjacent: (animeId: string, seasonNumber: number, episodeNumber: number, dir: 'next' | 'prev') =>
     [...playbackKeys.all, 'adjacent', dir, animeId, seasonNumber, episodeNumber] as const,
   resumePoint: (sessionId: string) => [...playbackKeys.all, 'resume-point', sessionId] as const,
 };
 
-/** Metadata + fuentes + calidades disponibles de un episodio. */
+/** Metadata + fuentes + calidades disponibles de un episodio (catálogo interno). */
 export function useEpisodePlaybackQuery(animeId: string, episodeId: string) {
   return useQuery({
     queryKey: playbackKeys.episode(animeId, episodeId),
     queryFn: () => fetchEpisodePlayback(animeId, episodeId),
+    staleTime: 60_000,
+  });
+}
+
+/** Igual que `useEpisodePlaybackQuery`, pero para un episodio resuelto directo desde un resultado de `/latest` (sin pasar primero por la ficha del anime). */
+export function useExternalEpisodePlaybackQuery(
+  providerId: string,
+  externalId: string,
+  episodeNumber: number,
+) {
+  return useQuery({
+    queryKey: playbackKeys.externalEpisode(providerId, externalId, episodeNumber),
+    queryFn: () => fetchExternalEpisodePlayback(providerId, externalId, episodeNumber),
     staleTime: 60_000,
   });
 }

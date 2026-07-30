@@ -156,11 +156,31 @@ export async function fetchEpisodePlayback(
   episodeId: string,
   preferredQuality?: StreamQuality,
 ): Promise<EpisodePlayback> {
-  const url = new URL(
-    `${API_BASE_URL}/animes/${encodeURIComponent(animeId)}/episodes/${encodeURIComponent(episodeId)}/playback`,
-  );
-  if (preferredQuality) url.searchParams.set('preferred_quality', preferredQuality);
-  const raw = await httpRequest<RawEpisodePlayback>(url.toString());
+  // `API_BASE_URL` es relativa (`/api/v1`) — `new URL()` exige una URL
+  // absoluta o un `base` explícito, si no lanza `TypeError: Invalid URL` de
+  // inmediato (antes de cualquier fetch real, sin dejar rastro en Network ni
+  // en consola). El resto del cliente pasa el string relativo directo a
+  // `httpRequest`/`fetch`, que sí lo resuelve bien contra el origin actual.
+  let path = `${API_BASE_URL}/animes/${encodeURIComponent(animeId)}/episodes/${encodeURIComponent(episodeId)}/playback`;
+  if (preferredQuality) path += `?preferred_quality=${encodeURIComponent(preferredQuality)}`;
+  const raw = await httpRequest<RawEpisodePlayback>(path);
+  return mapEpisodePlayback(raw);
+}
+
+/**
+ * GET /anime/external/:providerId/:externalId/episodes/:episodeNumber/playback — reemplaza el
+ * flujo de "ingerir la serie completa y navegar a la ficha" para clicks sobre un resultado de
+ * `/latest` (que ya trae provider_id + external_id + episode_number en `sources[]`): en una sola
+ * llamada resuelve metadata + fuentes reproducibles del episodio exacto. 404 real si el anime o el
+ * episodio no existen en el provider.
+ */
+export async function fetchExternalEpisodePlayback(
+  providerId: string,
+  externalId: string,
+  episodeNumber: number,
+): Promise<EpisodePlayback> {
+  const path = `${API_BASE_URL}/anime/external/${encodeURIComponent(providerId)}/${encodeURIComponent(externalId)}/episodes/${episodeNumber}/playback`;
+  const raw = await httpRequest<RawEpisodePlayback>(path);
   return mapEpisodePlayback(raw);
 }
 

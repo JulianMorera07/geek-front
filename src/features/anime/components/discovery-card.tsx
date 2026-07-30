@@ -14,14 +14,27 @@ export interface DiscoveryCardProps {
 
 /**
  * Card de un resultado del Provider Framework (`/popular`, `/latest`,
- * `/search`) — a diferencia de `AnimeCard`, esto NO es una entrada del
- * catálogo interno: no tiene `id` propio. El click va al puente
- * `/anime/external/:providerId/:externalId`, que ingiere el anime (si hace
- * falta) y redirige a la ficha real — ver `docs/api-integration.md`. Usa la
- * fuente de mayor prioridad (`sources[0]`); sin fuentes, no hay a dónde ir.
+ * `/new-animes`, `/search`) — a diferencia de `AnimeCard`, esto NO es una
+ * entrada del catálogo interno: no tiene `id` propio. Usa la fuente de mayor
+ * prioridad (`sources[0]`); sin fuentes, no hay a dónde ir.
+ *
+ * El destino del click depende de si la fuente trae `episodeNumber`:
+ * - `/latest` (episodios recién publicados) SÍ lo trae → va directo al
+ *   reproductor (`/watch/external/...`), sin pasar por la ficha del anime.
+ * - `/popular`/`/new-animes`/`/search` (listados de series) lo traen `null`
+ *   → va al puente `/anime/external/:providerId/:externalId`, que ingiere el
+ *   anime (si hace falta) y redirige a la ficha real.
  */
-function DiscoveryCard({ result, className }: DiscoveryCardProps) {
+function DiscoveryCard({ result, className }: Readonly<DiscoveryCardProps>) {
   const primarySource = result.sources[0];
+
+  let href: string | null = null;
+  if (primarySource) {
+    href =
+      primarySource.episodeNumber != null
+        ? `/watch/external/${encodeURIComponent(primarySource.providerId)}/${encodeURIComponent(primarySource.externalId)}/${primarySource.episodeNumber}`
+        : externalBridgeHref(primarySource, result.thumbnailUrl);
+  }
 
   const content = (
     <>
@@ -57,13 +70,13 @@ function DiscoveryCard({ result, className }: DiscoveryCardProps) {
 
   const sharedClassName = cn('flex w-full flex-col gap-2 rounded-lg', className);
 
-  if (!primarySource) {
+  if (!href) {
     return <div className={sharedClassName}>{content}</div>;
   }
 
   return (
     <Link
-      href={externalBridgeHref(primarySource, result.thumbnailUrl)}
+      href={href}
       className={cn(
         sharedClassName,
         'group focus-visible:ring-ring/50 outline-none focus-visible:ring-3',

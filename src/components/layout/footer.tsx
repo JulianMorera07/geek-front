@@ -18,6 +18,9 @@ export interface FooterProps {
   className?: string;
 }
 
+const DEFAULT_DISCLAIMER =
+  'GeekBaku no aloja, almacena ni sube ningún archivo de video en sus servidores. Todo el contenido reproducido proviene de proveedores externos de terceros; solo agregamos e indexamos esos enlaces.';
+
 /** Footer del layout marketing. Reutilizable: columnas y contenido son props, no hardcode. */
 function Footer({ logo, description, columns = [], copyright, className }: FooterProps) {
   const year = new Date().getFullYear();
@@ -50,8 +53,11 @@ function Footer({ logo, description, columns = [], copyright, className }: Foote
           </nav>
         ))}
       </Container>
-      <Container className="border-border/60 text-muted-foreground flex flex-col gap-2 border-t py-6 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <p>{copyright ?? `© ${year} GeekBaku. Todos los derechos reservados.`}</p>
+      <Container className="border-border/60 flex flex-col gap-3 border-t py-6">
+        <p className="text-muted-foreground text-xs">{DEFAULT_DISCLAIMER}</p>
+        <p className="text-muted-foreground text-xs">
+          {copyright ?? `© ${year} GeekBaku. Todos los derechos reservados.`}
+        </p>
       </Container>
     </footer>
   );
