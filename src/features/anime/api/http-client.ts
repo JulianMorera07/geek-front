@@ -77,11 +77,13 @@ async function apiFetch<T>(
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`[apiFetch] timeout tras ${timeoutMs}ms → ${url}`);
       throw new ApiError('El servidor tardó demasiado en responder.', {
         status: 408,
         code: 'TIMEOUT',
       });
     }
+    console.error(`[apiFetch] no se pudo conectar → ${url}`, error);
     throw new ApiError('No se pudo conectar con el servidor.', {
       status: 0,
       code: 'NETWORK_ERROR',
@@ -93,8 +95,10 @@ async function apiFetch<T>(
   if (!response.ok) {
     let code = 'UNKNOWN_ERROR';
     let message = `Error ${response.status} al consultar la API.`;
+    let rawBody: unknown;
     try {
-      const body = (await response.json()) as { error?: { code?: string; message?: string } };
+      rawBody = await response.json();
+      const body = rawBody as { error?: { code?: string; message?: string } };
       if (body?.error) {
         code = body.error.code ?? code;
         message = body.error.message ?? message;
@@ -102,6 +106,7 @@ async function apiFetch<T>(
     } catch {
       // Respuesta no-JSON (ej. traceback en texto plano) — se usa el mensaje genérico.
     }
+    console.error(`[apiFetch] ${response.status} ${response.statusText} → ${url}`, rawBody ?? '(sin body JSON)');
     throw new ApiError(message, { status: response.status, code });
   }
 

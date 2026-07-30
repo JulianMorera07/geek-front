@@ -24,10 +24,22 @@ import type { AnimeSummary, DiscoveryResult, Genre } from '@/features/anime/api/
  */
 export default async function HomePage() {
   const [ongoing, popular, latest, genres] = await Promise.all([
-    fetchCatalog({ status: 'ongoing', pageSize: 12 }).catch(() => null),
-    fetchPopular({ pageSize: 12 }).catch((): DiscoveryResult[] => []),
-    fetchLatest({ pageSize: 12 }).catch((): DiscoveryResult[] => []),
-    fetchGenres().catch((): Genre[] => []),
+    fetchCatalog({ status: 'ongoing', pageSize: 12 }).catch((error) => {
+      console.error('[HomePage] fetchCatalog (catálogo interno) falló:', error);
+      return null;
+    }),
+    fetchPopular({ pageSize: 12 }).catch((error): DiscoveryResult[] => {
+      console.error('[HomePage] fetchPopular falló:', error);
+      return [];
+    }),
+    fetchLatest({ pageSize: 12 }).catch((error): DiscoveryResult[] => {
+      console.error('[HomePage] fetchLatest falló:', error);
+      return [];
+    }),
+    fetchGenres().catch((error): Genre[] => {
+      console.error('[HomePage] fetchGenres falló:', error);
+      return [];
+    }),
   ]);
 
   const ongoingAnimes: AnimeSummary[] = ongoing?.items ?? [];

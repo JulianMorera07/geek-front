@@ -21,18 +21,9 @@ const nextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
   },
 
-  async rewrites() {
-    // Host:puerto del backend en la network interna de Docker. Se lee en
-    // runtime (el `runner` stage del Dockerfile no fija `BACKEND_INTERNAL_URL`,
-    // así que esto puede setearse con `-e` sin rebuildear la imagen si el
-    // nombre del servicio en el compose real difiere de `geek-back`).
-    const backendHost = process.env.BACKEND_INTERNAL_HOST ?? 'geek-back:8000';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `http://${backendHost}/api/:path*`,
-      },
-    ]
-  },
+  // El proxy hacia el backend interno para `/api/v1/*` ya NO vive acá como
+  // rewrite estático — ver `src/app/api/v1/[...path]/route.ts` para el porqué
+  // (un rewrite queda congelado en `routes-manifest.json` durante `next
+  // build` y no puede configurarse en runtime como se pretendía).
 }
 module.exports = nextConfig
