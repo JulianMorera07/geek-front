@@ -19,12 +19,22 @@ export interface AnimeCoverProps extends Omit<MediaCoverProps, 'seed' | 'src'> {
  */
 function AnimeCover({ animeId, thumbnailUrl, ...props }: AnimeCoverProps) {
   const [trackedAnimeId, setTrackedAnimeId] = React.useState(animeId);
-  const [cachedUrl, setCachedUrl] = React.useState<string | null>(() =>
-    thumbnailUrl || typeof window === 'undefined' ? null : getCachedCover(animeId),
-  );
+  // Arranca siempre en `null` (igual en servidor y en el primer render de
+  // hidratación/navegación en cliente) y se sincroniza con `localStorage` en
+  // un efecto aparte. Leer `localStorage` directo en el inicializador de
+  // `useState` produce un valor distinto entre SSR (`null`, `window` no
+  // existe) y el primer render en cliente (el valor cacheado real), lo que
+  // React detecta como mismatch y tumba la página con el error #418 — mismo
+  // bug que ya se corrigió en `EpisodePlayer` para el resume point.
+  const [cachedUrl, setCachedUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!thumbnailUrl) setCachedUrl(getCachedCover(animeId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; el cambio de anime ya se maneja en el ajuste de estado de abajo.
+  }, []);
 
   // Recalcula al cambiar de anime (ajuste de estado durante el render, no en
-  // un efecto — mismo patrón que `WatchPageClient` para el resume point).
+  // un efecto — mismo patrón que `EpisodePlayer` para el resume point).
   if (trackedAnimeId !== animeId) {
     setTrackedAnimeId(animeId);
     setCachedUrl(thumbnailUrl ? null : getCachedCover(animeId));
