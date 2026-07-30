@@ -44,6 +44,18 @@ async function apiFetch<T>(
   path: string,
   params?: Record<string, string | undefined>,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
+  /**
+   * Solo para endpoints del Provider Framework en la Home (`/popular`,
+   * `/latest`, `/new-animes`): sin esto, cada visita dispara 6 llamadas
+   * frescas en paralelo contra proveedores externos con rate limit real
+   * (ej. tioanime) — con varias visitas seguidas eso agota el límite rápido.
+   * Con un `revalidate` corto, Next.js sirve la misma respuesta cacheada a
+   * todos los visitantes durante esa ventana, colapsando N requests en 1.
+   * El resto de endpoints (catálogo interno, detalle, playback) sigue en
+   * `no-store` — deben ser siempre datos frescos o accionados por un click
+   * explícito del usuario, no visitas pasivas de página.
+   */
+  revalidateSeconds?: number,
 ): Promise<T> {
   // new URL() requiere una URL absoluta.
   // Si API_BASE_URL es relativa (/api/v1):
@@ -77,7 +89,9 @@ async function apiFetch<T>(
     // una request anterior. El cache de cliente lo maneja React Query.
     response = await fetch(url, {
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
+      ...(revalidateSeconds !== undefined
+        ? { next: { revalidate: revalidateSeconds } }
+        : { cache: 'no-store' }),
       signal: controller.signal,
     });
   } catch (error) {
@@ -429,24 +443,44 @@ export async function fetchCatalogFacets(): Promise<CatalogFacets> {
 }
 
 /**
+ * Ventana de cache compartida para los endpoints del Provider Framework
+ * (`/popular`, `/latest`, `/new-animes`) — agregan datos de proveedores
+ * externos con rate limit real (ej. tioanime). Sin esto, cada visita a la
+ * Home dispara requests frescos contra esos proveedores; con esta ventana,
+ * Next.js sirve la misma respuesta a todos los visitantes durante ese lapso,
+ * colapsando N requests en 1 y reduciendo la chance de agotar su rate limit.
+ */
+const DISCOVERY_REVALIDATE_SECONDS = 60;
+
+/**
  * GET /popular, /latest — Provider Framework: agregación en vivo de proveedores
  * externos. Devuelve un array plano (sin `total`/`hasNextPage`) — se infiere
  * si hay más páginas comparando el tamaño recibido contra `pageSize`.
  */
 export async function fetchPopular(params: DiscoveryQueryParams = {}): Promise<DiscoveryResult[]> {
-  const raw = await apiFetch<RawDiscoveryResult[]>('/popular', {
-    page: String(params.page ?? 1),
-    page_size: String(params.pageSize ?? 20),
-  });
+  const raw = await apiFetch<RawDiscoveryResult[]>(
+    '/popular',
+    {
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 20),
+    },
+    REQUEST_TIMEOUT_MS,
+    DISCOVERY_REVALIDATE_SECONDS,
+  );
   return raw.map(mapDiscoveryResult);
 }
 
 /** `sources[].episodeNumber` viene poblado acá — son episodios recién publicados, no series nuevas (ver `fetchNewAnimes`). */
 export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<DiscoveryResult[]> {
-  const raw = await apiFetch<RawDiscoveryResult[]>('/latest', {
-    page: String(params.page ?? 1),
-    page_size: String(params.pageSize ?? 20),
-  });
+  const raw = await apiFetch<RawDiscoveryResult[]>(
+    '/latest',
+    {
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 20),
+    },
+    REQUEST_TIMEOUT_MS,
+    DISCOVERY_REVALIDATE_SECONDS,
+  );
   return raw.map(mapDiscoveryResult);
 }
 
@@ -458,12 +492,17 @@ export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<Di
 export async function fetchNewAnimes(
   params: NewAnimesQueryParams = {},
 ): Promise<DiscoveryResult[]> {
-  const raw = await apiFetch<RawDiscoveryResult[]>('/new-animes', {
-    page: String(params.page ?? 1),
-    page_size: String(params.pageSize ?? 20),
-    provider_ids: params.providerIds?.length ? params.providerIds.join(',') : undefined,
-    type: params.type,
-  });
+  const raw = await apiFetch<RawDiscoveryResult[]>(
+    '/new-animes',
+    {
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 20),
+      provider_ids: params.providerIds?.length ? params.providerIds.join(',') : undefined,
+      type: params.type,
+    },
+    REQUEST_TIMEOUT_MS,
+    DISCOVERY_REVALIDATE_SECONDS,
+  );
   return raw.map(mapDiscoveryResult);
 }
 
