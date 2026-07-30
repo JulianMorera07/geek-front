@@ -17,6 +17,12 @@
 const nextConfig = {
   output: 'standalone',
 
+  // Temporal: para poder leer el stack trace real (archivo/línea, no código
+  // minificado) del bug de navegación cliente que tumba el Home al volver
+  // desde el reproductor. Quitar una vez diagnosticado — expone el código
+  // fuente en DevTools de cualquiera que abra el sitio.
+  productionBrowserSourceMaps: true,
+
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
     // El optimizador de Next (`/_next/image`) usa `sharp`/`libvips`, cuyo

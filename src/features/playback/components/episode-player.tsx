@@ -223,7 +223,11 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
     return (
       <ErrorView
         title="No pudimos cargar el reproductor"
-        description="Ocurrió un problema al consultar las fuentes de este episodio."
+        // El backend ya manda un mensaje específico y accionable (ej. "Rate
+        // limit excedido para el provider 'tioanime'") — mostrarlo tal cual
+        // es más útil que un texto genérico fijo, sin acoplarse a códigos
+        // de error frágiles para detectar casos puntuales.
+        description={playbackQuery.error.message}
         onRetry={() => playbackQuery.refetch()}
       />
     );

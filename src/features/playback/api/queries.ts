@@ -26,16 +26,23 @@ export const playbackKeys = {
   resumePoint: (sessionId: string) => [...playbackKeys.all, 'resume-point', sessionId] as const,
 };
 
-/** Metadata + fuentes + calidades disponibles de un episodio (catálogo interno). */
+/**
+ * Metadata + fuentes + calidades disponibles de un episodio (catálogo interno).
+ * `retry: false` — un error acá (404, o un 400 de "rate limit excedido" del
+ * provider externo) es una respuesta definitiva del backend, no un problema
+ * de red transitorio: reintentar automáticamente solo vuelve a pegarle al
+ * mismo provider ya limitado, empeorando el rate limit en vez de ayudar.
+ */
 export function useEpisodePlaybackQuery(animeId: string, episodeId: string) {
   return useQuery({
     queryKey: playbackKeys.episode(animeId, episodeId),
     queryFn: () => fetchEpisodePlayback(animeId, episodeId),
     staleTime: 60_000,
+    retry: false,
   });
 }
 
-/** Igual que `useEpisodePlaybackQuery`, pero para un episodio resuelto directo desde un resultado de `/latest` (sin pasar primero por la ficha del anime). */
+/** Igual que `useEpisodePlaybackQuery`, pero para un episodio resuelto directo desde un resultado de `/latest` (sin pasar primero por la ficha del anime). Mismo motivo para `retry: false`. */
 export function useExternalEpisodePlaybackQuery(
   providerId: string,
   externalId: string,
@@ -44,6 +51,7 @@ export function useExternalEpisodePlaybackQuery(
   return useQuery({
     queryKey: playbackKeys.externalEpisode(providerId, externalId, episodeNumber),
     queryFn: () => fetchExternalEpisodePlayback(providerId, externalId, episodeNumber),
+    retry: false,
     staleTime: 60_000,
   });
 }
