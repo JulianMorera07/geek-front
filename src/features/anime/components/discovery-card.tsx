@@ -4,7 +4,7 @@ import { StarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MediaCover } from '@/components/base/media-cover';
 import { Badge } from '@/components/ui/badge';
-import { externalBridgeHref } from '@/features/anime/external-bridge-href';
+import { discoveryResultHref } from '@/features/anime/external-bridge-href';
 import type { DiscoveryResult } from '@/features/anime/api/types';
 
 export interface DiscoveryCardProps {
@@ -26,15 +26,7 @@ export interface DiscoveryCardProps {
  *   anime (si hace falta) y redirige a la ficha real.
  */
 function DiscoveryCard({ result, className }: Readonly<DiscoveryCardProps>) {
-  const primarySource = result.sources[0];
-
-  let href: string | null = null;
-  if (primarySource) {
-    href =
-      primarySource.episodeNumber != null
-        ? `/watch/external/${encodeURIComponent(primarySource.providerId)}/${encodeURIComponent(primarySource.externalId)}/${primarySource.episodeNumber}`
-        : externalBridgeHref(primarySource, result.thumbnailUrl);
-  }
+  const href = discoveryResultHref(result);
 
   const content = (
     <>

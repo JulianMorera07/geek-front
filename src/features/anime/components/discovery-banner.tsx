@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { discoveryResultHref } from '@/features/anime/external-bridge-href';
 import type { DiscoveryResult } from '@/features/anime/api/types';
 
 interface DiscoveryBannerProps {
@@ -35,8 +36,14 @@ export function DiscoveryBanner({ results }: DiscoveryBannerProps) {
   const item = results[current];
   if (!item) return null;
 
+  const href = discoveryResultHref(item);
+  // Si la fuente trae `episodeNumber` (resultados de `/latest`), el link va
+  // directo a reproducir — el label debe reflejarlo, no decir "Ver detalles"
+  // para algo que abre el reproductor de una.
+  const isDirectEpisode = item.sources[0]?.episodeNumber != null;
+
   return (
-    <div className="relative w-full overflow-hidden rounded-xl aspect-[21/9] bg-muted">
+    <div className="relative w-full overflow-hidden rounded-xl aspect-[4/3] sm:aspect-video lg:aspect-[21/9] bg-muted">
       {item.thumbnailUrl && (
         <Image
           src={item.thumbnailUrl}
@@ -47,19 +54,17 @@ export function DiscoveryBanner({ results }: DiscoveryBannerProps) {
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2 max-w-lg">
+      <div className="absolute bottom-0 left-0 p-4 sm:p-6 flex flex-col gap-2 max-w-lg">
         {item.animeType && (
           <Badge variant="secondary" className="w-fit capitalize">
             {item.animeType}
           </Badge>
         )}
-        <h2 className="text-white text-2xl font-bold line-clamp-2">{item.title}</h2>
-        {item.sources[0] && (
-          <Link
-            href={`/anime/external/${item.sources[0].providerId}/${item.sources[0].externalId}`}
-          >
+        <h2 className="text-white text-xl sm:text-2xl font-bold line-clamp-2">{item.title}</h2>
+        {href && (
+          <Link href={href}>
             <Button size="sm" variant="secondary">
-              Ver detalles
+              {isDirectEpisode ? 'Ver episodio' : 'Ver detalles'}
             </Button>
           </Link>
         )}
