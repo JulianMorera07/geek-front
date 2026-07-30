@@ -76,12 +76,22 @@ function WatchPageClient({ animeId, episodeId }: WatchPageClientProps) {
     languageCode: string | null;
   } | null>(null);
   const [trackedEpisodeId, setTrackedEpisodeId] = React.useState(episodeId);
-  const [sessionId, setSessionId] = React.useState<string | null>(() =>
-    typeof window === 'undefined' ? null : getStoredSessionId(episodeId),
-  );
+  // Arranca siempre en `null` (igual en servidor y en el primer render de
+  // hidratación en cliente) y se sincroniza con `localStorage` en un efecto
+  // aparte, después del montaje. Leer `localStorage` directo en el
+  // inicializador de `useState` produce un valor distinto en SSR (`null`,
+  // `window` no existe) vs. la hidratación en cliente (el valor real
+  // guardado), lo que React detecta como mismatch y tumba toda la página con
+  // el error #418 sin dejar rastro en consola aparte de ese código minificado.
+  const [sessionId, setSessionId] = React.useState<string | null>(null);
   const sessionRequestedForRef = React.useRef<string | null>(null);
   const elapsedSecondsRef = React.useRef(0);
   const lastSaveRef = React.useRef(0);
+
+  React.useEffect(() => {
+    setSessionId(getStoredSessionId(episodeId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; el cambio de episodio ya se maneja en el ajuste de estado de abajo.
+  }, []);
 
   // Reinicia selección manual + sesión al cambiar de episodio (ajuste de
   // estado durante el render, no en un efecto — ver nota de más abajo).
