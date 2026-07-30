@@ -31,7 +31,7 @@ Proyecto base del frontend de GeekBaku. Ver `docs/frontend-architecture.md` para
 
 ```bash
 npm install
-cp .env.example .env.local   # ajustar BACKEND_INTERNAL_URL si el backend no corre en localhost:8000
+cp .env.example .env.local   # ajustar BACKEND_INTERNAL_HOST si el backend no corre en localhost:8000
 npm run dev
 ```
 
@@ -43,16 +43,18 @@ En desarrollo verás un botón flotante de **React Query Devtools** (esquina inf
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `BACKEND_INTERNAL_URL` | `http://localhost:8000/api/v1` | URL base del backend (incluye el prefijo `/api/v1`). Solo se usa server-side (RSC) — el navegador nunca la ve, ver nota abajo. |
-| `BACKEND_INTERNAL_HOST` | `geek-back:8000` | Host:puerto del backend en la network interna de Docker, usado por el `rewrite` de `/api/*` (para requests que salen del navegador). Runtime env, no requiere rebuild. Ajustar al nombre real del servicio si el compose no usa `geek-back`. |
+| `BACKEND_INTERNAL_HOST` | `geek-back:8000` | Host:puerto del backend en la network interna de Docker/Podman. Runtime env (leída en cada request, no requiere rebuild). Ajustar al nombre real del servicio si el compose no usa `geek-back`. |
 
-**Por qué el navegador nunca usa `BACKEND_INTERNAL_URL` directo**: es un nombre de host interno de
-Docker (ej. `geek-back`), no resuelve DNS fuera de esa network. Si el bundle del cliente lo llevara
-literal, todo fetch hecho desde el navegador (scroll infinito, reproductor) fallaría con
-`NETWORK_ERROR` aunque el SSR funcione perfecto. Por eso `resolveApiBaseUrl()` (`src/lib/http.ts`)
-devuelve `/api/v1` en el navegador siempre — esa ruta relativa cae en el propio servidor Next, que la
-reescribe hacia `http://${BACKEND_INTERNAL_HOST}/api/*` (`next.config.ts`). El server (RSC) sigue
-usando `BACKEND_INTERNAL_URL` completa, sin pasar por el rewrite.
+**Un solo camino para todo el tráfico al backend**: tanto el navegador como el servidor (RSC) piden
+siempre la ruta relativa `/api/v1` (`resolveApiBaseUrl()` en `src/lib/http.ts`). Esa ruta cae en el
+propio servidor Next y la resuelve el Route Handler `src/app/api/v1/[...path]/route.ts`, que lee
+`BACKEND_INTERNAL_HOST` en cada request y hace de proxy hacia `http://${BACKEND_INTERNAL_HOST}/api/v1/*`.
+Antes existía un segundo camino (`BACKEND_INTERNAL_URL`, solo para RSC, directo al backend sin pasar
+por el Route Handler) — se eliminó porque dos variables para lo mismo se podían desincronizar y hacer
+que una parte del sitio funcionara y otra no sin motivo aparente. También se descartó resolver esto
+con el `rewrites()` de `next.config.ts`: esa función se resuelve una sola vez durante `next build` y
+queda congelada en `.next/routes-manifest.json` — cambiar `BACKEND_INTERNAL_HOST` en runtime no tenía
+ningún efecto. Un Route Handler sí re-ejecuta su código (y lee `process.env`) en cada request.
 
 ## Scripts
 
@@ -105,20 +107,19 @@ npx shadcn@latest add <componente>
 
 ## Docker
 
-`BACKEND_INTERNAL_URL` se inlinea en el bundle del cliente durante `next build` — Next.js no
-lo lee en runtime para código que corre en el navegador. Por eso se pasa como **build arg**, no
-como `-e` en `docker run` (un `-e` en runtime no cambia nada que el cliente ya tenga compilado).
+No hace falta ningún build arg para conectar con el backend — `BACKEND_INTERNAL_HOST` es una env
+var normal de runtime, se puede cambiar sin rebuildear la imagen.
 
 Build de la imagen:
 
 ```bash
-docker build --build-arg BACKEND_INTERNAL_URL=https://api.geekbaku.com/api/v1 -t geekbaku-frontend .
+docker build -t geekbaku-frontend .
 ```
 
 Ejecutar el contenedor:
 
 ```bash
-docker run -p 3000:3000 geekbaku-frontend
+docker run -p 3000:3000 -e BACKEND_INTERNAL_HOST=geek-back:8000 geekbaku-frontend
 ```
 
 La imagen usa el modo `standalone` de Next.js (build multi-stage, usuario no-root, sin dependencias

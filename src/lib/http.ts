@@ -3,18 +3,18 @@ import { ApiError } from '@/lib/api-error';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 /**
- * `BACKEND_INTERNAL_URL` apunta al backend por su nombre en la network interna
- * de Docker/Podman (ej. `http://geek-back:8000/api/v1`) — no es un DNS público,
- * el navegador nunca podría resolverlo. Next.js ya evita inlinear variables
- * sin prefijo `NEXT_PUBLIC_` en el bundle de cliente, pero este check explícito
- * no depende de ese detalle interno: en el navegador siempre se pide la ruta
- * relativa `/api/v1`, que cae en el propio servidor Next y sale por el
- * rewrite de `next.config.ts` hacia el backend interno. El server (RSC) sí usa
- * la URL interna directo, sin pasar por el rewrite.
+ * Siempre relativa, tanto en el navegador como en el servidor (RSC) — ambos
+ * pasan por el mismo Route Handler (`src/app/api/v1/[...path]/route.ts`),
+ * que es la única fuente de verdad de a qué host interno (`BACKEND_INTERNAL_HOST`)
+ * pegarle. Antes el servidor tenía un segundo camino directo al backend vía
+ * `BACKEND_INTERNAL_URL` (otra variable, otro formato) — dos rutas para lo
+ * mismo que podían desincronizarse y hacer que una parte del sitio funcionara
+ * y otra no sin motivo aparente. Un único camino es más simple de depurar
+ * (el tráfico completo pasa por el mismo lugar) y no cuesta nada perceptible:
+ * es un hop extra por loopback (`localhost:3000`), no una red externa.
  */
 export function resolveApiBaseUrl(): string {
-  if (typeof window !== 'undefined') return '/api/v1';
-  return process.env.BACKEND_INTERNAL_URL ?? '/api/v1';
+  return '/api/v1';
 }
 
 /**

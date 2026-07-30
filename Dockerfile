@@ -14,11 +14,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# `BACKEND_INTERNAL_*` se inlinea en el bundle del cliente durante `next build`,
-# no se puede setear en runtime — por eso es un build arg, no un ENV del
-# stage `runner`. Ver README.md sección Docker para el comando completo.
-ARG BACKEND_INTERNAL_URL
-ENV BACKEND_INTERNAL_URL=${BACKEND_INTERNAL_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
