@@ -47,12 +47,16 @@ async function apiFetch<T>(
   // new URL() requiere una URL absoluta.
   // Si API_BASE_URL es relativa (/api/v1):
   //   - En el browser usamos window.location.origin como base
-  //   - En el servidor (SSR/Node.js) usamos http://localhost:3000
+  //   - En el servidor (SSR/Node.js) usamos 127.0.0.1 explícito, no
+  //     "localhost": en Alpine, "localhost" puede resolver primero a `::1`
+  //     (IPv6) mientras el server de Next solo escucha en IPv4 (`0.0.0.0`),
+  //     y esa carrera produce `ECONNREFUSED`/`NETWORK_ERROR` intermitentes
+  //     en el fetch de la propia app hacia sí misma (confirmado en producción).
   const base = API_BASE_URL.startsWith('http')
     ? API_BASE_URL
     : typeof window !== 'undefined'
       ? `${window.location.origin}${API_BASE_URL}`
-      : `http://localhost:3000${API_BASE_URL}`;
+      : `http://127.0.0.1:${process.env.PORT ?? '3000'}${API_BASE_URL}`;
 
   const url = new URL(`${base}${path}`);
   if (params) {
