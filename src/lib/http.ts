@@ -76,11 +76,13 @@ export async function httpRequest<T>(url: string, options: HttpRequestOptions = 
     });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`[httpRequest] timeout tras ${timeoutMs}ms → ${url}`);
       throw new ApiError('El servidor tardó demasiado en responder.', {
         status: 408,
         code: 'TIMEOUT',
       });
     }
+    console.error(`[httpRequest] error de red → ${url}`, error);
     throw new ApiError('No se pudo conectar con el servidor.', {
       status: 0,
       code: 'NETWORK_ERROR',
@@ -98,6 +100,7 @@ export async function httpRequest<T>(url: string, options: HttpRequestOptions = 
 
   if (!response.ok) {
     const { code, message } = extractError(parsed, response.status);
+    console.error(`[httpRequest] ${response.status} ${code} → ${url}`, message);
     throw new ApiError(message, { status: response.status, code });
   }
 
