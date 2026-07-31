@@ -11,6 +11,26 @@ export interface ContinueWatchingEntry {
 }
 
 /**
+ * El formato guardado cambió (antes tenía `episodeId`, sin `href`/`animeTitle`
+ * ni `updatedAt`) — sin esta validación, una entrada vieja en `localStorage`
+ * de un usuario que ya usó el sitio antes de este cambio se leía con
+ * `href: undefined`, y el `<Link href={undefined}>` del banner de Home tumbaba
+ * toda la página (confirmado en vivo: Home entero caía al error boundary).
+ */
+function isValidEntry(value: unknown): value is ContinueWatchingEntry {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.href === 'string' &&
+    v.href.length > 0 &&
+    typeof v.animeTitle === 'string' &&
+    typeof v.seasonNumber === 'number' &&
+    typeof v.episodeNumber === 'number' &&
+    typeof v.updatedAt === 'number'
+  );
+}
+
+/**
  * Último episodio visto por serie (distinto del `sessionId` por episodio de
  * `session-storage.ts`, que sirve para retomar el minuto exacto DENTRO de un
  * episodio) — esto es lo que permite mostrar "Ibas por T1 · Ep. 5" al volver
@@ -20,8 +40,15 @@ export interface ContinueWatchingEntry {
  */
 export function getContinueWatching(key: string): ContinueWatchingEntry | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + key);
-    return raw ? (JSON.parse(raw) as ContinueWatchingEntry) : null;
+    const storageKey = STORAGE_PREFIX + key;
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!isValidEntry(parsed)) {
+      window.localStorage.removeItem(storageKey);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -47,8 +74,12 @@ export function getMostRecentContinueWatching(): ContinueWatchingEntry | null {
       if (!key?.startsWith(STORAGE_PREFIX)) continue;
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
-      const entry = JSON.parse(raw) as ContinueWatchingEntry;
-      if (!latest || entry.updatedAt > latest.updatedAt) latest = entry;
+      const parsed = JSON.parse(raw);
+      if (!isValidEntry(parsed)) {
+        window.localStorage.removeItem(key);
+        continue;
+      }
+      if (!latest || parsed.updatedAt > latest.updatedAt) latest = parsed;
     }
     return latest;
   } catch {
