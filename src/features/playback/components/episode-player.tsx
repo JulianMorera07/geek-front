@@ -58,6 +58,14 @@ export interface EpisodePlayerProps {
   /** Sin navegación entre episodios si se omiten (ej. flujo externo directo, sin animeId interno). */
   previous?: EpisodeReference | null;
   next?: EpisodeReference | null;
+  /**
+   * Respaldo para el umbral de "episodio terminado" cuando la respuesta del
+   * reproductor no trae `durationSeconds` (habitual en fuentes externas) —
+   * la duración real del episodio del catálogo interno (`Episode.durationMinutes`,
+   * ahora poblada para animes ingestados desde jkanime), más precisa que el
+   * estimado genérico. Solo disponible en el flujo interno (con animeId).
+   */
+  durationSecondsHint?: number | null;
 }
 
 function WatchPageSkeleton() {
@@ -91,7 +99,13 @@ function formatMinutes(totalSeconds: number): string {
  * `/latest`) — solo cambia de dónde sale `playbackQuery` y si hay
  * navegación entre episodios adyacentes disponible.
  */
-function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlayerProps) {
+function EpisodePlayer({
+  watchKey,
+  playbackQuery,
+  previous,
+  next,
+  durationSecondsHint,
+}: EpisodePlayerProps) {
   const createSession = useCreatePlaybackSessionMutation();
   const selectSource = useSelectPlaybackSourceMutation();
   const selectQuality = useSelectPlaybackQualityMutation();
@@ -209,20 +223,18 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
     endedNotifiedRef.current = false;
     setEpisodeEnded(false);
     const realDurationSeconds = playbackQuery.data?.metadata.durationSeconds ?? null;
+    // Umbral para el aviso de "episodio terminado", en orden de precisión:
+    // duración real del reproductor > duración real del catálogo interno
+    // (`durationSecondsHint`, cuando el flujo interno la tiene) > estimado
+    // genérico (~24 min). Sigue siendo aproximado sin las dos primeras — no
+    // hay forma de saber el final real sin control del reproductor (iframe
+    // cross-origin).
+    const endThresholdSeconds =
+      realDurationSeconds ?? durationSecondsHint ?? DEFAULT_EPISODE_DURATION_SECONDS;
     const interval = setInterval(() => {
       elapsedSecondsRef.current += 1;
 
-      // Aviso de "episodio terminado": SOLO con una duración real conocida
-      // del backend. Con el estimado genérico de abajo (24 min cuando el
-      // backend no la informa, típico en fuentes externas) nunca se puede
-      // saber en verdad si el episodio terminó — mostrarlo igual sería
-      // adivinar y el aviso podría aparecer mientras el usuario aún ve el
-      // capítulo. Sin duración real, esta función simplemente no aplica acá.
-      if (
-        realDurationSeconds &&
-        !endedNotifiedRef.current &&
-        elapsedSecondsRef.current >= realDurationSeconds
-      ) {
+      if (!endedNotifiedRef.current && elapsedSecondsRef.current >= endThresholdSeconds) {
         endedNotifiedRef.current = true;
         setEpisodeEnded(true);
       }
