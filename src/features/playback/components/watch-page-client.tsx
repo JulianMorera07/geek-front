@@ -1,11 +1,14 @@
 'use client';
 
+import * as React from 'react';
+
 import {
   useEpisodePlaybackQuery,
   useNextEpisodeQuery,
   usePreviousEpisodeQuery,
 } from '@/features/playback/api/queries';
 import { EpisodePlayer } from '@/features/playback/components/episode-player';
+import { storeContinueWatching } from '@/features/playback/continue-watching-storage';
 
 export interface WatchPageClientProps {
   animeId: string;
@@ -22,6 +25,18 @@ function WatchPageClient({ animeId, episodeId }: WatchPageClientProps) {
     metadata?.seasonNumber,
     metadata?.episodeNumber,
   );
+
+  // Registra "último episodio visto" por anime — lo que le permite a
+  // `ContinueWatchingBanner` (en la ficha del anime) mostrar "ibas por T1 ·
+  // Ep. 5" sin que el usuario haya vuelto a entrar al reproductor todavía.
+  React.useEffect(() => {
+    if (!metadata) return;
+    storeContinueWatching(animeId, {
+      episodeId,
+      seasonNumber: metadata.seasonNumber,
+      episodeNumber: metadata.episodeNumber,
+    });
+  }, [animeId, episodeId, metadata]);
 
   return (
     <EpisodePlayer

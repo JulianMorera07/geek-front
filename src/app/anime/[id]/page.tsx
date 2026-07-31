@@ -5,6 +5,7 @@ import { Container } from '@/components/layout/container';
 import { Heading, Text } from '@/components/base/typography';
 import { AnimeCover } from '@/features/anime/components/anime-cover';
 import { Badge } from '@/components/ui/badge';
+import { ContinueWatchingBanner } from '@/features/playback/components/continue-watching-banner';
 import { EpisodeList } from '@/features/anime/components/episode-list';
 import { RelatedAnimeRow } from '@/features/anime/components/related-anime-row';
 import { fetchAnimeById, fetchGenres } from '@/features/anime/api/http-client';
@@ -67,6 +68,8 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ id
           ) : null}
         </div>
       </div>
+
+      <ContinueWatchingBanner animeId={anime.id} />
 
       <section className="flex flex-col gap-4">
         <Heading level="h3">Episodios</Heading>
