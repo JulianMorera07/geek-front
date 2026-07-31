@@ -10,6 +10,16 @@ import {
 import { useAnimeEpisodesQuery } from '@/features/anime/api/queries';
 import { EpisodePlayer } from '@/features/playback/components/episode-player';
 import { storeContinueWatching } from '@/features/playback/continue-watching-storage';
+import type { AdjacentEpisode, EpisodeReference } from '@/features/playback/api/types';
+
+function toAdjacentEpisode(ref: EpisodeReference | undefined | null): AdjacentEpisode | null {
+  if (!ref) return null;
+  return {
+    href: `/anime/${ref.animeId}/watch/${ref.episodeId}`,
+    seasonNumber: ref.seasonNumber,
+    episodeNumber: ref.episodeNumber,
+  };
+}
 
 export interface WatchPageClientProps {
   animeId: string;
@@ -17,7 +27,7 @@ export interface WatchPageClientProps {
 }
 
 /** Reproducción de un episodio del catálogo interno, con navegación entre episodios adyacentes. */
-function WatchPageClient({ animeId, episodeId }: WatchPageClientProps) {
+function WatchPageClient({ animeId, episodeId }: Readonly<WatchPageClientProps>) {
   const playbackQuery = useEpisodePlaybackQuery(animeId, episodeId);
   const metadata = playbackQuery.data?.metadata;
   const nextQuery = useNextEpisodeQuery(animeId, metadata?.seasonNumber, metadata?.episodeNumber);
@@ -37,12 +47,15 @@ function WatchPageClient({ animeId, episodeId }: WatchPageClientProps) {
     : null;
 
   // Registra "último episodio visto" por anime — lo que le permite a
-  // `ContinueWatchingBanner` (en la ficha del anime) mostrar "ibas por T1 ·
-  // Ep. 5" sin que el usuario haya vuelto a entrar al reproductor todavía.
+  // `ContinueWatchingBanner` (en la ficha del anime) y a la Home mostrar
+  // "ibas por T1 · Ep. 5" sin que el usuario haya vuelto a entrar al
+  // reproductor todavía.
   React.useEffect(() => {
     if (!metadata) return;
     storeContinueWatching(animeId, {
-      episodeId,
+      animeTitle: metadata.animeTitle,
+      thumbnailUrl: metadata.thumbnailUrl,
+      href: `/anime/${animeId}/watch/${episodeId}`,
       seasonNumber: metadata.seasonNumber,
       episodeNumber: metadata.episodeNumber,
     });
@@ -52,8 +65,8 @@ function WatchPageClient({ animeId, episodeId }: WatchPageClientProps) {
     <EpisodePlayer
       watchKey={episodeId}
       playbackQuery={playbackQuery}
-      previous={previousQuery.data}
-      next={nextQuery.data}
+      previous={toAdjacentEpisode(previousQuery.data)}
+      next={toAdjacentEpisode(nextQuery.data)}
       durationSecondsHint={durationSecondsHint}
     />
   );

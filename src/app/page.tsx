@@ -1,15 +1,15 @@
 import { Container } from '@/components/layout/container';
 import { ErrorView } from '@/components/base/error-view';
 import { DiscoveryBanner } from '@/features/anime/components/discovery-banner';
-import { OngoingList } from '@/features/anime/components/ongoing-list';
 import { DiscoveryRow } from '@/features/anime/components/discovery-row';
+import { HomeContinueWatchingBanner } from '@/features/playback/components/home-continue-watching-banner';
 import {
   fetchCatalog,
   fetchLatest,
   fetchNewAnimes,
   fetchPopular,
 } from '@/features/anime/api/http-client';
-import type { AnimeSummary, DiscoveryResult } from '@/features/anime/api/types';
+import type { DiscoveryResult } from '@/features/anime/api/types';
 
 /**
  * Home combina dos fuentes reales distintas (ver `docs/api-integration.md`):
@@ -56,8 +56,6 @@ export default async function HomePage() {
       }),
     ]);
 
-  const ongoingAnimes: AnimeSummary[] = ongoing?.items ?? [];
-
   return (
     <Container className="flex flex-col gap-10 py-6">
       {!ongoing ? (
@@ -67,10 +65,9 @@ export default async function HomePage() {
         />
       ) : null}
 
-      <div className="flex flex-col-reverse gap-6 lg:flex-row">
-        <OngoingList animes={ongoingAnimes} className="lg:w-64 lg:shrink-0" />
-        <DiscoveryBanner results={newAnimes.slice(0, 4)} className="flex-1" />
-      </div>
+      <HomeContinueWatchingBanner />
+
+      <DiscoveryBanner results={newAnimes.slice(0, 4)} />
 
       <DiscoveryRow title="Últimos capítulos" results={latest} viewAllHref="/latest" />
       <DiscoveryRow title="Nuevos animes" results={newAnimes} />

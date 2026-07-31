@@ -25,7 +25,7 @@ import { EpisodeNavigation } from '@/features/playback/components/episode-naviga
 import { getStoredSessionId, storeSessionId } from '@/features/playback/session-storage';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isNotFoundError } from '@/lib/api-error';
-import type { EpisodePlayback, EpisodeReference, PlaybackSource } from '@/features/playback/api/types';
+import type { AdjacentEpisode, EpisodePlayback, PlaybackSource } from '@/features/playback/api/types';
 
 const PROGRESS_SAVE_INTERVAL_MS = 10_000;
 /** Estimado cuando el backend no informa duración real (típico en fuentes externas): ~24 min. */
@@ -55,9 +55,9 @@ export interface EpisodePlayerProps {
    */
   watchKey: string;
   playbackQuery: UseQueryResult<EpisodePlayback, Error>;
-  /** Sin navegación entre episodios si se omiten (ej. flujo externo directo, sin animeId interno). */
-  previous?: EpisodeReference | null;
-  next?: EpisodeReference | null;
+  /** Sin navegación entre episodios si se omiten. */
+  previous?: AdjacentEpisode | null;
+  next?: AdjacentEpisode | null;
   /**
    * Respaldo para el umbral de "episodio terminado" cuando la respuesta del
    * reproductor no trae `durationSeconds` (habitual en fuentes externas) —

@@ -40,7 +40,7 @@ function ContinueWatchingBanner({ animeId }: Readonly<ContinueWatchingBannerProp
         Ibas por T{entry.seasonNumber} · Ep. {entry.episodeNumber}
       </Text>
       <div className="flex gap-2">
-        <Button size="sm" render={<Link href={`/anime/${animeId}/watch/${entry.episodeId}`} />}>
+        <Button size="sm" render={<Link href={entry.href} />}>
           <PlayIcon />
           Continuar viendo
         </Button>

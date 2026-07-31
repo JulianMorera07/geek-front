@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import type { EpisodeReference } from '@/features/playback/api/types';
+import type { AdjacentEpisode } from '@/features/playback/api/types';
 
 export interface EpisodeNavigationProps {
-  previous?: EpisodeReference | null;
-  next?: EpisodeReference | null;
+  previous?: AdjacentEpisode | null;
+  next?: AdjacentEpisode | null;
 }
 
 /** Navegación entre episodios adyacentes — oculta el lado que no existe (primer/último episodio). */
@@ -16,10 +16,7 @@ function EpisodeNavigation({ previous, next }: EpisodeNavigationProps) {
   return (
     <div className="flex items-center justify-between gap-2">
       {previous ? (
-        <Button
-          variant="outline"
-          render={<Link href={`/anime/${previous.animeId}/watch/${previous.episodeId}`} />}
-        >
+        <Button variant="outline" render={<Link href={previous.href} />}>
           <ChevronLeftIcon />
           Episodio anterior
         </Button>
@@ -27,7 +24,7 @@ function EpisodeNavigation({ previous, next }: EpisodeNavigationProps) {
         <span />
       )}
       {next ? (
-        <Button render={<Link href={`/anime/${next.animeId}/watch/${next.episodeId}`} />}>
+        <Button render={<Link href={next.href} />}>
           Siguiente episodio
           <ChevronRightIcon />
         </Button>

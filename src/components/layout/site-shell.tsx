@@ -17,6 +17,7 @@ import {
   AnimeSearchCommand,
   useCommandShortcut,
 } from '@/features/anime/components/anime-search-command';
+import { useOngoingCatalogQuery } from '@/features/anime/api/queries';
 import { UserMenu } from '@/features/auth/components/user-menu';
 
 const primaryNav = [
@@ -41,6 +42,9 @@ function SiteShell({ children }: { children: React.ReactNode }) {
   const [commandOpen, setCommandOpen] = React.useState(false);
   useCommandShortcut(() => setCommandOpen(true));
 
+  const ongoingQuery = useOngoingCatalogQuery();
+  const ongoingAnimes = ongoingQuery.data?.items ?? [];
+
   return (
     <SidebarProvider>
       <AppSidebar
@@ -58,6 +62,18 @@ function SiteShell({ children }: { children: React.ReactNode }) {
               isActive: pathname === item.url,
             })),
           },
+          ...(ongoingAnimes.length > 0
+            ? [
+                {
+                  label: 'En emisión',
+                  items: ongoingAnimes.map((anime) => ({
+                    title: anime.title,
+                    url: `/anime/${anime.id}`,
+                    isActive: pathname === `/anime/${anime.id}`,
+                  })),
+                },
+              ]
+            : []),
         ]}
       />
       <SidebarInset>

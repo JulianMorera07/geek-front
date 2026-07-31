@@ -45,6 +45,15 @@ export function useCatalogInfiniteQuery(params: Omit<CatalogQueryParams, 'page'>
   });
 }
 
+/** Series en emisión para la lista lateral del sidebar — solo la primera página, sin scroll infinito. */
+export function useOngoingCatalogQuery() {
+  return useQuery({
+    queryKey: animeKeys.catalog({ status: 'ongoing', pageSize: 12 }),
+    queryFn: () => fetchCatalog({ status: 'ongoing', page: 1, pageSize: 12 }),
+    staleTime: 60_000,
+  });
+}
+
 export function useAnimeDetailQuery(animeId: string) {
   return useQuery({
     queryKey: animeKeys.detail(animeId),

@@ -49,6 +49,20 @@ export interface EpisodeReference {
   episodeNumber: number;
 }
 
+/**
+ * Forma genérica para "episodio adyacente" que usan `EpisodeNavigation` y
+ * `NextEpisodePrompt` — a diferencia de `EpisodeReference` (que exige
+ * `animeId`/`episodeId` del catálogo interno), `href` ya viene resuelto por
+ * quien arma el dato, así sirve tanto para el flujo interno
+ * (`/anime/:animeId/watch/:episodeId`) como para el externo
+ * (`/watch/external/:providerId/:externalId/:episodeNumber`).
+ */
+export interface AdjacentEpisode {
+  href: string;
+  seasonNumber: number;
+  episodeNumber: number;
+}
+
 export interface WatchProgress {
   positionSeconds: number;
   durationSeconds: number;

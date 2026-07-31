@@ -6,12 +6,12 @@ import { XIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/base/typography';
-import type { EpisodeReference } from '@/features/playback/api/types';
+import type { AdjacentEpisode } from '@/features/playback/api/types';
 
 const AUTO_ADVANCE_SECONDS = 10;
 
 export interface NextEpisodePromptProps {
-  next: EpisodeReference;
+  next: AdjacentEpisode;
   onCancel: () => void;
 }
 
@@ -24,7 +24,7 @@ export interface NextEpisodePromptProps {
 function NextEpisodePrompt({ next, onCancel }: Readonly<NextEpisodePromptProps>) {
   const router = useRouter();
   const [secondsLeft, setSecondsLeft] = React.useState(AUTO_ADVANCE_SECONDS);
-  const nextHref = `/anime/${next.animeId}/watch/${next.episodeId}`;
+  const nextHref = next.href;
 
   React.useEffect(() => {
     if (secondsLeft <= 0) {
