@@ -5,14 +5,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { discoveryResultHref } from '@/features/anime/external-bridge-href';
 import type { DiscoveryResult } from '@/features/anime/api/types';
 
 interface DiscoveryBannerProps {
   results: DiscoveryResult[];
+  className?: string;
 }
 
-export function DiscoveryBanner({ results }: DiscoveryBannerProps) {
+export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBannerProps>) {
   const [current, setCurrent] = useState(0);
   // mounted evita que el banner intente renderizar contenido dinámico
   // durante la hidratación — el servidor siempre renderiza null y el
@@ -43,7 +45,12 @@ export function DiscoveryBanner({ results }: DiscoveryBannerProps) {
   const isDirectEpisode = item.sources[0]?.episodeNumber != null;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl aspect-[4/3] sm:aspect-video lg:aspect-[21/9] bg-muted">
+    <div
+      className={cn(
+        'relative w-full overflow-hidden rounded-xl aspect-[4/3] sm:aspect-video lg:aspect-[21/9] bg-muted',
+        className,
+      )}
+    >
       {item.thumbnailUrl && (
         <Image
           src={item.thumbnailUrl}

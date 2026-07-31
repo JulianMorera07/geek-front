@@ -1,8 +1,7 @@
 import { Container } from '@/components/layout/container';
 import { ErrorView } from '@/components/base/error-view';
-import { Banner } from '@/features/anime/components/banner';
 import { DiscoveryBanner } from '@/features/anime/components/discovery-banner';
-import { AnimeRow } from '@/features/anime/components/anime-row';
+import { OngoingList } from '@/features/anime/components/ongoing-list';
 import { DiscoveryRow } from '@/features/anime/components/discovery-row';
 import {
   fetchCatalog,
@@ -61,21 +60,17 @@ export default async function HomePage() {
 
   return (
     <Container className="flex flex-col gap-10 py-6">
-      <DiscoveryBanner results={latest.slice(0, 4)} />
-
-      {ongoing ? (
-        ongoingAnimes.length > 0 ? (
-          <>
-            <Banner animes={ongoingAnimes} />
-            <AnimeRow title="En emisión" animes={ongoingAnimes} />
-          </>
-        ) : null
-      ) : (
+      {!ongoing ? (
         <ErrorView
           title="No pudimos cargar el catálogo"
           description="El catálogo interno no respondió. Las secciones de abajo son independientes y pueden seguir funcionando."
         />
-      )}
+      ) : null}
+
+      <div className="flex flex-col-reverse gap-6 lg:flex-row">
+        <OngoingList animes={ongoingAnimes} className="lg:w-64 lg:shrink-0" />
+        <DiscoveryBanner results={newAnimes.slice(0, 4)} className="flex-1" />
+      </div>
 
       <DiscoveryRow title="Últimos capítulos" results={latest} viewAllHref="/latest" />
       <DiscoveryRow title="Nuevos animes" results={newAnimes} />

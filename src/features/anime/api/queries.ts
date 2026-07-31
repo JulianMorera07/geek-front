@@ -14,7 +14,8 @@ import {
   fetchPopular,
   fetchSearch,
 } from '@/features/anime/api/http-client';
-import type { CatalogQueryParams, DirectoryQueryParams } from '@/features/anime/api/types';
+import type { CatalogQueryParams, DirectoryQueryParams, DiscoveryResult } from '@/features/anime/api/types';
+import { pageHasNewResults } from '@/features/anime/discovery-dedupe';
 
 /** Query keys centralizadas del dominio anime. */
 export const animeKeys = {
@@ -97,8 +98,16 @@ export function useCatalogFacetsQuery() {
  * `/popular` y `/latest` (Provider Framework) no devuelven `total` — se
  * infiere que hay más páginas si la última trajo un página completa.
  */
-function inferHasNextPage(lastPageItems: unknown[], pageSize: number): boolean {
-  return lastPageItems.length >= pageSize;
+function inferHasNextPage(
+  lastPage: DiscoveryResult[],
+  allPages: DiscoveryResult[][],
+  pageSize: number,
+): boolean {
+  if (lastPage.length < pageSize) return false;
+  // Algunos proveedores, al pasar la última página real, repiten los mismos
+  // resultados en vez de devolver una página corta o vacía — si la "nueva"
+  // página no trae nada que no hayamos visto ya, se corta el scroll acá.
+  return pageHasNewResults(lastPage, allPages.slice(0, -1));
 }
 
 const DISCOVERY_PAGE_SIZE = 20;
@@ -109,7 +118,7 @@ export function usePopularInfiniteQuery() {
     queryFn: ({ pageParam }) => fetchPopular({ page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
-      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+      inferHasNextPage(lastPage, allPages, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
   });
 }
 
@@ -119,7 +128,7 @@ export function useLatestInfiniteQuery() {
     queryFn: ({ pageParam }) => fetchLatest({ page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
-      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+      inferHasNextPage(lastPage, allPages, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
   });
 }
 
@@ -131,7 +140,7 @@ export function useDirectoryInfiniteQuery(params: Omit<DirectoryQueryParams, 'pa
       fetchDirectory({ ...params, page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
-      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+      inferHasNextPage(lastPage, allPages, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
   });
 }
 
@@ -149,7 +158,7 @@ export function useSearchInfiniteQuery(q: string) {
       fetchSearch({ q: trimmed, page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
-      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+      inferHasNextPage(lastPage, allPages, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
     enabled: trimmed.length > 0,
   });
 }

@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { useDirectoryInfiniteQuery } from '@/features/anime/api/queries';
 import { DiscoveryInfiniteGrid } from '@/features/anime/components/discovery-infinite-grid';
+import { dedupeDiscoveryResults } from '@/features/anime/discovery-dedupe';
 import {
   DirectoryFilters,
   defaultDirectoryFilters,
@@ -14,7 +15,7 @@ import {
 function DirectoryPageClient() {
   const [filters, setFilters] = React.useState<DirectoryFiltersState>(defaultDirectoryFilters);
   const query = useDirectoryInfiniteQuery(filters);
-  const results = query.data?.pages.flat() ?? [];
+  const results = dedupeDiscoveryResults(query.data?.pages.flat() ?? []);
 
   return (
     <div className="flex flex-col gap-4">
