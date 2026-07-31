@@ -174,6 +174,32 @@ export interface NewAnimesQueryParams extends DiscoveryQueryParams {
   type?: NewAnimeType;
 }
 
+/** Tipos de contenido en `GET /directory` — a diferencia de `NewAnimeType`, incluye `TV`/`ONA`. */
+export type DirectoryType = 'TV' | 'Movie' | 'OVA' | 'ONA' | 'Special';
+export type DirectoryStatus = 'airing' | 'finished' | 'upcoming';
+export type DirectoryOrder = 'date' | 'name' | 'popularity';
+export type DirectoryAudio = 'dub' | 'sub';
+
+/**
+ * `GET /directory` — grilla filtrable que agrega y deduplica jkanime + tioanime.
+ * Ojo (documentado por el backend): el vocabulario de `genre` NO está
+ * unificado entre proveedores — el mismo slug puede no filtrar igual en
+ * ambos sitios. `order`, `demographic` y `season` solo los soporta jkanime
+ * (tioanime los ignora en silencio, no da error). `audio: 'sub'` no filtra
+ * nada hoy (ningún proveedor expone "solo subtitulado" como filtro propio).
+ */
+export interface DirectoryQueryParams extends DiscoveryQueryParams {
+  providerIds?: string[];
+  type?: DirectoryType;
+  genre?: string;
+  status?: DirectoryStatus;
+  order?: DirectoryOrder;
+  audio?: DirectoryAudio;
+  demographic?: string;
+  season?: string;
+  year?: number;
+}
+
 /** `GET /search` (Provider Framework) — a diferencia de `/latest`/`/popular`, `q` es obligatorio. */
 export interface SearchQueryParams {
   q: string;

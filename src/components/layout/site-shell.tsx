@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClapperboardIcon, FlameIcon, HomeIcon, TrendingUpIcon } from 'lucide-react';
+import { ClapperboardIcon, CompassIcon, FlameIcon, HomeIcon, TrendingUpIcon } from 'lucide-react';
 
 import { Navbar } from '@/components/layout/navbar';
 import {
@@ -17,11 +17,11 @@ import {
   AnimeSearchCommand,
   useCommandShortcut,
 } from '@/features/anime/components/anime-search-command';
-import { useGenresQuery } from '@/features/anime/api/queries';
 import { UserMenu } from '@/features/auth/components/user-menu';
 
 const primaryNav = [
   { title: 'Inicio', url: '/', icon: HomeIcon },
+  { title: 'Explorar', url: '/directory', icon: CompassIcon },
   { title: 'Últimos', url: '/latest', icon: ClapperboardIcon },
   { title: 'Populares', url: '/popular', icon: TrendingUpIcon },
 ];
@@ -29,13 +29,17 @@ const primaryNav = [
 /**
  * Shell único de todo el sitio (sin distinción marketing/app todavía —
  * no hay autenticación en este sprint). Monta Navbar + AppSidebar + Footer.
+ *
+ * Sin filtro de género: enlazaba a `/genre/[id]` (catálogo interno), que
+ * hoy está vacío/sin seed — filtrar por género ahí no encontraba la mayoría
+ * de los animes reales (esos viven en el Provider Framework, sin género
+ * propio). Se quita hasta tener una fuente de géneros que sí cubra el
+ * contenido real (decisión confirmada con el usuario, 2026-07-30).
  */
 function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [commandOpen, setCommandOpen] = React.useState(false);
   useCommandShortcut(() => setCommandOpen(true));
-  const genresQuery = useGenresQuery();
-  const genres = genresQuery.data ?? [];
 
   return (
     <SidebarProvider>
@@ -52,14 +56,6 @@ function SiteShell({ children }: { children: React.ReactNode }) {
             items: primaryNav.map((item) => ({
               ...item,
               isActive: pathname === item.url,
-            })),
-          },
-          {
-            label: 'Géneros',
-            items: genres.map((genre) => ({
-              title: genre.name,
-              url: `/genre/${genre.id}`,
-              isActive: pathname === `/genre/${genre.id}`,
             })),
           },
         ]}
@@ -89,16 +85,11 @@ function SiteShell({ children }: { children: React.ReactNode }) {
             {
               title: 'Explorar',
               links: [
+                { label: 'Directorio', href: '/directory' },
                 { label: 'Últimos', href: '/latest' },
                 { label: 'Populares', href: '/popular' },
                 { label: 'Buscar', href: '/search' },
               ],
-            },
-            {
-              title: 'Géneros',
-              links: genres
-                .slice(0, 5)
-                .map((genre) => ({ label: genre.name, href: `/genre/${genre.id}` })),
             },
           ]}
         />

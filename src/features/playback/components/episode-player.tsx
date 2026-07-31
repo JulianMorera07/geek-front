@@ -17,11 +17,13 @@ import {
   useSelectPlaybackSubtitleMutation,
 } from '@/features/playback/api/queries';
 import { VideoPlayer } from '@/features/playback/components/video-player';
+import { NextEpisodePrompt } from '@/features/playback/components/next-episode-prompt';
 import { LanguageSelector } from '@/features/playback/components/language-selector';
 import { SourceSelector } from '@/features/playback/components/source-selector';
 import { SubtitleSelector } from '@/features/playback/components/subtitle-selector';
 import { EpisodeNavigation } from '@/features/playback/components/episode-navigation';
 import { getStoredSessionId, storeSessionId } from '@/features/playback/session-storage';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { isNotFoundError } from '@/lib/api-error';
 import type { EpisodePlayback, EpisodeReference, PlaybackSource } from '@/features/playback/api/types';
 
@@ -111,9 +113,11 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
   // guardado), lo que React detecta como mismatch y tumba toda la página con
   // el error #418 sin dejar rastro en consola aparte de ese código minificado.
   const [sessionId, setSessionId] = React.useState<string | null>(null);
+  const [episodeEnded, setEpisodeEnded] = React.useState(false);
   const sessionRequestedForRef = React.useRef<string | null>(null);
   const elapsedSecondsRef = React.useRef(0);
   const lastSaveRef = React.useRef(0);
+  const endedNotifiedRef = React.useRef(false);
 
   React.useEffect(() => {
     setSessionId(getStoredSessionId(watchKey));
@@ -128,9 +132,19 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
     setManualSourceId(null);
     setManualSubtitle(null);
     setSessionId(getStoredSessionId(watchKey));
+    setEpisodeEnded(false);
+    endedNotifiedRef.current = false;
   }
 
-  const sources = playbackQuery.data?.sources ?? [];
+  const isMobile = useIsMobile();
+  const allSources = playbackQuery.data?.sources ?? [];
+  // Los embeds de mega.nz no cargan bien en navegadores móviles (confirmado
+  // por el usuario) — se ocultan solo ahí, no en desktop. Si TODAS las
+  // fuentes fueran de mega, se muestran de todos modos (mejor una fuente que
+  // ninguna) — el filtro es una preferencia, no una garantía de que sobre
+  // otra opción.
+  const nonMegaSources = allSources.filter((s) => !s.url.includes('mega.nz'));
+  const sources = isMobile && nonMegaSources.length > 0 ? nonMegaSources : allSources;
   const defaultSource = sources.find((s) => s.isActive) ?? sources[0];
 
   // Idiomas de audio distintos disponibles entre las fuentes (orden de
@@ -192,8 +206,27 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
       resumePointQuery.data && !resumePointQuery.data.isCompleted
         ? resumePointQuery.data.positionSeconds
         : 0;
+    endedNotifiedRef.current = false;
+    setEpisodeEnded(false);
+    const realDurationSeconds = playbackQuery.data?.metadata.durationSeconds ?? null;
     const interval = setInterval(() => {
       elapsedSecondsRef.current += 1;
+
+      // Aviso de "episodio terminado": SOLO con una duración real conocida
+      // del backend. Con el estimado genérico de abajo (24 min cuando el
+      // backend no la informa, típico en fuentes externas) nunca se puede
+      // saber en verdad si el episodio terminó — mostrarlo igual sería
+      // adivinar y el aviso podría aparecer mientras el usuario aún ve el
+      // capítulo. Sin duración real, esta función simplemente no aplica acá.
+      if (
+        realDurationSeconds &&
+        !endedNotifiedRef.current &&
+        elapsedSecondsRef.current >= realDurationSeconds
+      ) {
+        endedNotifiedRef.current = true;
+        setEpisodeEnded(true);
+      }
+
       const now = Date.now();
       if (now - lastSaveRef.current < PROGRESS_SAVE_INTERVAL_MS) return;
       lastSaveRef.current = now;
@@ -202,8 +235,7 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
       // `elapsed + 1`, que dejaría el porcentaje siempre en ~100% y el
       // backend marcaría la sesión como completada casi al instante.
       const durationSeconds =
-        playbackQuery.data?.metadata.durationSeconds ??
-        Math.max(DEFAULT_EPISODE_DURATION_SECONDS, elapsedSecondsRef.current + 60);
+        realDurationSeconds ?? Math.max(DEFAULT_EPISODE_DURATION_SECONDS, elapsedSecondsRef.current + 60);
       saveProgress.mutate({
         sessionId,
         positionSeconds: elapsedSecondsRef.current,
@@ -302,7 +334,12 @@ function EpisodePlayer({ watchKey, playbackQuery, previous, next }: EpisodePlaye
       </div>
 
       {currentSource ? (
-        <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
+        <div className="relative">
+          <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
+          {episodeEnded && next ? (
+            <NextEpisodePrompt next={next} onCancel={() => setEpisodeEnded(false)} />
+          ) : null}
+        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-2">

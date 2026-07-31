@@ -1,19 +1,16 @@
 import { Container } from '@/components/layout/container';
-import { Heading } from '@/components/base/typography';
 import { ErrorView } from '@/components/base/error-view';
 import { Banner } from '@/features/anime/components/banner';
 import { DiscoveryBanner } from '@/features/anime/components/discovery-banner';
 import { AnimeRow } from '@/features/anime/components/anime-row';
 import { DiscoveryRow } from '@/features/anime/components/discovery-row';
-import { GenreGrid } from '@/features/anime/components/genre-grid';
 import {
   fetchCatalog,
-  fetchGenres,
   fetchLatest,
   fetchNewAnimes,
   fetchPopular,
 } from '@/features/anime/api/http-client';
-import type { AnimeSummary, DiscoveryResult, Genre } from '@/features/anime/api/types';
+import type { AnimeSummary, DiscoveryResult } from '@/features/anime/api/types';
 
 /**
  * Home combina dos fuentes reales distintas (ver `docs/api-integration.md`):
@@ -28,7 +25,7 @@ import type { AnimeSummary, DiscoveryResult, Genre } from '@/features/anime/api/
  * series por tipo, y populares al final — ver conversación del 2026-07-30.
  */
 export default async function HomePage() {
-  const [ongoing, popular, latest, newAnimes, newMovies, newOvas, newSpecials, genres] =
+  const [ongoing, popular, latest, newAnimes, newMovies, newOvas, newSpecials] =
     await Promise.all([
       fetchCatalog({ status: 'ongoing', pageSize: 12 }).catch((error) => {
         console.error('[HomePage] fetchCatalog (catálogo interno) falló:', error);
@@ -56,10 +53,6 @@ export default async function HomePage() {
       }),
       fetchNewAnimes({ pageSize: 12, type: 'Special' }).catch((error): DiscoveryResult[] => {
         console.error('[HomePage] fetchNewAnimes (Special) falló:', error);
-        return [];
-      }),
-      fetchGenres().catch((error): Genre[] => {
-        console.error('[HomePage] fetchGenres falló:', error);
         return [];
       }),
     ]);
@@ -90,13 +83,6 @@ export default async function HomePage() {
       <DiscoveryRow title="Ovas nuevas" results={newOvas} />
       <DiscoveryRow title="Especiales nuevos" results={newSpecials} />
       <DiscoveryRow title="Populares" results={popular} viewAllHref="/popular" />
-
-      {genres.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <Heading level="h3">Explora por género</Heading>
-          <GenreGrid genres={genres.slice(0, 6)} />
-        </section>
-      ) : null}
     </Container>
   );
 }

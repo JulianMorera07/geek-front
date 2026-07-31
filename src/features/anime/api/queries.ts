@@ -7,13 +7,14 @@ import {
   fetchAnimeEpisodes,
   fetchCatalog,
   fetchCatalogFacets,
+  fetchDirectory,
   fetchGenreById,
   fetchGenres,
   fetchLatest,
   fetchPopular,
   fetchSearch,
 } from '@/features/anime/api/http-client';
-import type { CatalogQueryParams } from '@/features/anime/api/types';
+import type { CatalogQueryParams, DirectoryQueryParams } from '@/features/anime/api/types';
 
 /** Query keys centralizadas del dominio anime. */
 export const animeKeys = {
@@ -28,6 +29,8 @@ export const animeKeys = {
   discoveryPopular: () => ['discovery', 'popular'] as const,
   discoveryLatest: () => ['discovery', 'latest'] as const,
   discoverySearch: (q: string) => ['discovery', 'search', q] as const,
+  directory: (params: Omit<DirectoryQueryParams, 'page' | 'pageSize'>) =>
+    ['discovery', 'directory', params] as const,
 };
 
 /** Catálogo interno con scroll infinito (`total` real → `hasNextPage` exacto, no heurístico). */
@@ -114,6 +117,18 @@ export function useLatestInfiniteQuery() {
   return useInfiniteQuery({
     queryKey: animeKeys.discoveryLatest(),
     queryFn: ({ pageParam }) => fetchLatest({ page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,
+  });
+}
+
+/** Directorio filtrable (`GET /directory`) — mismo patrón heurístico de `hasNextPage` que `/popular`/`/latest`. */
+export function useDirectoryInfiniteQuery(params: Omit<DirectoryQueryParams, 'page' | 'pageSize'>) {
+  return useInfiniteQuery({
+    queryKey: animeKeys.directory(params),
+    queryFn: ({ pageParam }) =>
+      fetchDirectory({ ...params, page: pageParam, pageSize: DISCOVERY_PAGE_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
       inferHasNextPage(lastPage, DISCOVERY_PAGE_SIZE) ? allPages.length + 1 : undefined,

@@ -6,6 +6,7 @@ import type {
   AnimeSummary,
   CatalogFacets,
   CatalogQueryParams,
+  DirectoryQueryParams,
   DiscoveryQueryParams,
   DiscoveryResult,
   Episode,
@@ -499,6 +500,35 @@ export async function fetchNewAnimes(
       page_size: String(params.pageSize ?? 20),
       provider_ids: params.providerIds?.length ? params.providerIds.join(',') : undefined,
       type: params.type,
+    },
+    REQUEST_TIMEOUT_MS,
+    DISCOVERY_REVALIDATE_SECONDS,
+  );
+  return raw.map(mapDiscoveryResult);
+}
+
+/**
+ * GET /directory — grilla filtrable que agrega y deduplica jkanime + tioanime
+ * (fan-out/dedupe/ranking vía el `AggregationEngine` del backend). Ver
+ * `DirectoryQueryParams` para las limitaciones de cada filtro por proveedor.
+ */
+export async function fetchDirectory(
+  params: DirectoryQueryParams = {},
+): Promise<DiscoveryResult[]> {
+  const raw = await apiFetch<RawDiscoveryResult[]>(
+    '/directory',
+    {
+      page: String(params.page ?? 1),
+      page_size: String(params.pageSize ?? 20),
+      provider_ids: params.providerIds?.length ? params.providerIds.join(',') : undefined,
+      type: params.type,
+      genre: params.genre,
+      status: params.status,
+      order: params.order,
+      audio: params.audio,
+      demographic: params.demographic,
+      season: params.season,
+      year: params.year !== undefined ? String(params.year) : undefined,
     },
     REQUEST_TIMEOUT_MS,
     DISCOVERY_REVALIDATE_SECONDS,
