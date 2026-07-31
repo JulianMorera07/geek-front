@@ -41,7 +41,7 @@ function Navbar({ logo, links = [], actions, onSearchClick, leadingSlot, classNa
         className,
       )}
     >
-      <Container className="flex h-14 items-center gap-3">
+      <Container className="flex h-14 items-center gap-2 sm:gap-3">
         {leadingSlot}
         <Link href="/" className="font-heading flex items-center gap-2 font-semibold">
           {logo}

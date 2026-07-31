@@ -65,7 +65,12 @@ function SiteShell({ children }: { children: React.ReactNode }) {
           logo={
             <span className="flex items-center gap-2">
               <FlameIcon className="text-brand size-5" />
-              GeekBaku
+              {/* Oculto en mobile: el Navbar ya tiene sidebar trigger + buscar +
+                  tema + login/registro en la misma fila sin wrap — sumado al
+                  wordmark completo, desborda el ancho de un celular normal
+                  (confirmado en vivo: empujaba el botón "Registrarse" fuera de
+                  la pantalla). El wordmark completo sigue en el sidebar. */}
+              <span className="hidden sm:inline">GeekBaku</span>
             </span>
           }
           leadingSlot={<SidebarTrigger />}
