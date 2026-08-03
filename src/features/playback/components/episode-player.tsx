@@ -17,7 +17,6 @@ import {
   useSelectPlaybackSubtitleMutation,
 } from '@/features/playback/api/queries';
 import { VideoPlayer } from '@/features/playback/components/video-player';
-import { NativeVideoPlayer } from '@/features/playback/components/native-video-player';
 import { NextEpisodePrompt } from '@/features/playback/components/next-episode-prompt';
 import { LanguageSelector } from '@/features/playback/components/language-selector';
 import { SourceSelector } from '@/features/playback/components/source-selector';
@@ -131,10 +130,6 @@ function EpisodePlayer({
   // el error #418 sin dejar rastro en consola aparte de ese código minificado.
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [episodeEnded, setEpisodeEnded] = React.useState(false);
-  // Id de la fuente cuyo `directUrl` falló al cargar (best-effort, puede
-  // pasar) — para esa fuente puntual se cae al `<iframe>` de siempre en vez
-  // de repetir el intento fallido.
-  const [failedDirectSourceId, setFailedDirectSourceId] = React.useState<string | null>(null);
   const sessionRequestedForRef = React.useRef<string | null>(null);
   const elapsedSecondsRef = React.useRef(0);
   const lastSaveRef = React.useRef(0);
@@ -217,16 +212,20 @@ function EpisodePlayer({
   }, [sessionId, currentSource?.id]);
 
   const resumePointQuery = usePlaybackResumePointQuery(sessionId ?? undefined);
-  const hasDirectControl =
-    Boolean(currentSource?.directUrl) && currentSource?.id !== failedDirectSourceId;
 
   // El progreso real del embed no es legible (iframe cross-origin) — se
   // aproxima con tiempo transcurrido en pantalla, arrancando desde el resume
-  // point conocido, y se guarda cada ~10s. Cuando SÍ hay `directUrl`
-  // (`hasDirectControl`), este efecto no corre — `handleNativeProgress`/
-  // `handleNativeEnded` toman su lugar con datos reales del `<video>`.
+  // point conocido, y se guarda cada ~10s.
+  //
+  // Nota: `source.directUrl` existe en el tipo por compatibilidad con el
+  // backend, pero ya NO se usa para reproducir — un `<video>` propio
+  // apuntando directo al CDN del proveedor rompía la reproducción a mitad de
+  // episodio (esos CDNs protegen sus fragmentos con Referer/Origin del sitio
+  // original o URLs de expiración corta, y rechazaban los fragmentos pedidos
+  // desde nuestro dominio). Deshabilitado hasta que haya un proxy en el
+  // backend que reenvíe los headers correctos por proveedor.
   React.useEffect(() => {
-    if (!sessionId || !currentSource || hasDirectControl) return;
+    if (!sessionId || !currentSource) return;
     elapsedSecondsRef.current =
       resumePointQuery.data && !resumePointQuery.data.isCompleted
         ? resumePointQuery.data.positionSeconds
@@ -277,30 +276,7 @@ function EpisodePlayer({
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-arranca el timer al cambiar de sesión/fuente o al llegar el resume point; no en cada cambio de `saveProgress`.
-  }, [sessionId, currentSource?.id, hasDirectControl, resumePointQuery.data]);
-
-  // Con `directUrl`, el progreso/fin real llega del propio `<video>` (evento
-  // nativo `ended`, no aproximación por tiempo) — mismo guardado cada ~10s
-  // vía `lastSaveRef`, sin necesidad del `setInterval` de arriba.
-  function handleNativeProgress(currentTimeSeconds: number, videoDurationSeconds: number) {
-    if (!sessionId) return;
-    const now = Date.now();
-    if (now - lastSaveRef.current < PROGRESS_SAVE_INTERVAL_MS) return;
-    lastSaveRef.current = now;
-    saveProgress.mutate({
-      sessionId,
-      positionSeconds: Math.floor(currentTimeSeconds),
-      durationSeconds: Math.floor(videoDurationSeconds) || DEFAULT_EPISODE_DURATION_SECONDS,
-    });
-  }
-
-  function handleNativeEnded() {
-    setEpisodeEnded(true);
-  }
-
-  function handleNativeError() {
-    if (currentSource) setFailedDirectSourceId(currentSource.id);
-  }
+  }, [sessionId, currentSource?.id, resumePointQuery.data]);
 
   function handleLanguageChange(languageCode: string) {
     setManualLanguage(languageCode);
@@ -381,7 +357,7 @@ function EpisodePlayer({
         <Heading level="h2">
           T{metadata?.seasonNumber} · Ep. {metadata?.episodeNumber} — {metadata?.title}
         </Heading>
-        {hasResumePoint && !hasDirectControl ? (
+        {hasResumePoint ? (
           <Text variant="muted">
             Ibas por el minuto {formatMinutes(resumePointQuery.data!.positionSeconds)} — el
             reproductor es de un proveedor externo, retoma manualmente desde sus controles.
@@ -391,20 +367,7 @@ function EpisodePlayer({
 
       {currentSource ? (
         <div className="relative">
-          {hasDirectControl && currentSource.directUrl ? (
-            <NativeVideoPlayer
-              src={currentSource.directUrl}
-              title={`${metadata?.animeTitle} — ${metadata?.title}`}
-              poster={metadata?.thumbnailUrl}
-              skipIntervals={metadata?.skipIntervals ?? []}
-              startAtSeconds={hasResumePoint ? resumePointQuery.data!.positionSeconds : 0}
-              onProgress={handleNativeProgress}
-              onEnded={handleNativeEnded}
-              onError={handleNativeError}
-            />
-          ) : (
-            <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
-          )}
+          <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
           {episodeEnded && next ? (
             <NextEpisodePrompt next={next} onCancel={() => setEpisodeEnded(false)} />
           ) : null}
