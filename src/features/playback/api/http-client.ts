@@ -6,6 +6,7 @@ import type {
   PlaybackSession,
   PlaybackSource,
   ResumePoint,
+  SkipInterval,
   StreamQuality,
   Subtitle,
   WatchProgress,
@@ -29,10 +30,16 @@ interface RawPlaybackSource {
   provider_id: string;
   server_name: string;
   url: string;
+  direct_url: string | null;
   quality: StreamQuality;
   audio: RawAudioTrack;
   subtitles: RawSubtitle[];
   is_active: boolean;
+}
+interface RawSkipInterval {
+  kind: 'op' | 'ed';
+  start_seconds: number;
+  end_seconds: number;
 }
 interface RawPlaybackMetadata {
   title: string;
@@ -42,6 +49,8 @@ interface RawPlaybackMetadata {
   season_number: number;
   episode_number: number;
   duration_seconds: number | null;
+  /** Array vacío no implica ausencia de intro/outro — solo que AniSkip no tiene dato para este episodio todavía. */
+  skip_intervals: RawSkipInterval[];
   thumbnail_url: string | null;
 }
 interface RawEpisodePlayback {
@@ -97,11 +106,16 @@ function mapSource(raw: RawPlaybackSource): PlaybackSource {
     providerId: raw.provider_id,
     serverName: raw.server_name,
     url: raw.url,
+    directUrl: raw.direct_url,
     quality: raw.quality,
     audio: mapAudioTrack(raw.audio),
     subtitles: raw.subtitles.map(mapSubtitle),
     isActive: raw.is_active,
   };
+}
+
+function mapSkipInterval(raw: RawSkipInterval): SkipInterval {
+  return { kind: raw.kind, startSeconds: raw.start_seconds, endSeconds: raw.end_seconds };
 }
 
 function mapEpisodePlayback(raw: RawEpisodePlayback): EpisodePlayback {
@@ -114,6 +128,7 @@ function mapEpisodePlayback(raw: RawEpisodePlayback): EpisodePlayback {
       seasonNumber: raw.metadata.season_number,
       episodeNumber: raw.metadata.episode_number,
       durationSeconds: raw.metadata.duration_seconds,
+      skipIntervals: raw.metadata.skip_intervals.map(mapSkipInterval),
       thumbnailUrl: resolveMediaUrl(raw.metadata.thumbnail_url),
     },
     sources: raw.sources.map(mapSource),

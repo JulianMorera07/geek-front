@@ -17,6 +17,7 @@ import {
   useSelectPlaybackSubtitleMutation,
 } from '@/features/playback/api/queries';
 import { VideoPlayer } from '@/features/playback/components/video-player';
+import { NativeVideoPlayer } from '@/features/playback/components/native-video-player';
 import { NextEpisodePrompt } from '@/features/playback/components/next-episode-prompt';
 import { LanguageSelector } from '@/features/playback/components/language-selector';
 import { SourceSelector } from '@/features/playback/components/source-selector';
@@ -28,8 +29,10 @@ import { isNotFoundError } from '@/lib/api-error';
 import type { AdjacentEpisode, EpisodePlayback, PlaybackSource } from '@/features/playback/api/types';
 
 const PROGRESS_SAVE_INTERVAL_MS = 10_000;
-/** Estimado cuando el backend no informa duración real (típico en fuentes externas): ~24 min. */
+/** Estimado de respaldo SOLO para el `durationSeconds` reportado a `saveProgress` (no para disparar el aviso de fin) cuando no hay ninguna duración conocida. */
 const DEFAULT_EPISODE_DURATION_SECONDS = 24 * 60;
+/** Margen antes del fin real/estimado para disparar el aviso — evita que se dispare justo en el último segundo. */
+const END_THRESHOLD_MARGIN_SECONDS = 5;
 
 /**
  * El mensaje de error del backend puede nombrar el proveedor externo real
@@ -59,11 +62,11 @@ export interface EpisodePlayerProps {
   previous?: AdjacentEpisode | null;
   next?: AdjacentEpisode | null;
   /**
-   * Respaldo para el umbral de "episodio terminado" cuando la respuesta del
-   * reproductor no trae `durationSeconds` (habitual en fuentes externas) —
-   * la duración real del episodio del catálogo interno (`Episode.durationMinutes`,
-   * ahora poblada para animes ingestados desde jkanime), más precisa que el
-   * estimado genérico. Solo disponible en el flujo interno (con animeId).
+   * Último respaldo para el umbral de "episodio terminado" cuando ni
+   * `metadata.skipIntervals` (ending) ni `metadata.durationSeconds` traen
+   * dato — la duración del catálogo interno (`Episode.durationMinutes`).
+   * Solo disponible en el flujo interno (con animeId). Si tampoco hay esto,
+   * el aviso no se dispara por tiempo (ver lógica en el efecto de progreso).
    */
   durationSecondsHint?: number | null;
 }
@@ -128,6 +131,10 @@ function EpisodePlayer({
   // el error #418 sin dejar rastro en consola aparte de ese código minificado.
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [episodeEnded, setEpisodeEnded] = React.useState(false);
+  // Id de la fuente cuyo `directUrl` falló al cargar (best-effort, puede
+  // pasar) — para esa fuente puntual se cae al `<iframe>` de siempre en vez
+  // de repetir el intento fallido.
+  const [failedDirectSourceId, setFailedDirectSourceId] = React.useState<string | null>(null);
   const sessionRequestedForRef = React.useRef<string | null>(null);
   const elapsedSecondsRef = React.useRef(0);
   const lastSaveRef = React.useRef(0);
@@ -210,12 +217,16 @@ function EpisodePlayer({
   }, [sessionId, currentSource?.id]);
 
   const resumePointQuery = usePlaybackResumePointQuery(sessionId ?? undefined);
+  const hasDirectControl =
+    Boolean(currentSource?.directUrl) && currentSource?.id !== failedDirectSourceId;
 
   // El progreso real del embed no es legible (iframe cross-origin) — se
   // aproxima con tiempo transcurrido en pantalla, arrancando desde el resume
-  // point conocido, y se guarda cada ~10s.
+  // point conocido, y se guarda cada ~10s. Cuando SÍ hay `directUrl`
+  // (`hasDirectControl`), este efecto no corre — `handleNativeProgress`/
+  // `handleNativeEnded` toman su lugar con datos reales del `<video>`.
   React.useEffect(() => {
-    if (!sessionId || !currentSource) return;
+    if (!sessionId || !currentSource || hasDirectControl) return;
     elapsedSecondsRef.current =
       resumePointQuery.data && !resumePointQuery.data.isCompleted
         ? resumePointQuery.data.positionSeconds
@@ -223,14 +234,24 @@ function EpisodePlayer({
     endedNotifiedRef.current = false;
     setEpisodeEnded(false);
     const realDurationSeconds = playbackQuery.data?.metadata.durationSeconds ?? null;
-    // Umbral para el aviso de "episodio terminado", en orden de precisión:
-    // duración real del reproductor > duración real del catálogo interno
-    // (`durationSecondsHint`, cuando el flujo interno la tiene) > estimado
-    // genérico (~24 min). Sigue siendo aproximado sin las dos primeras — no
-    // hay forma de saber el final real sin control del reproductor (iframe
-    // cross-origin).
+    const skipIntervals = playbackQuery.data?.metadata.skipIntervals ?? [];
+    const endingStartSeconds = skipIntervals.find((s) => s.kind === 'ed')?.startSeconds ?? null;
+    // Umbral para el aviso de "episodio terminado", en orden de precisión
+    // (recomendado por backend): el ending detectado por AniSkip es la señal
+    // más confiable de dónde termina el contenido real (arranca justo cuando
+    // empieza/termina el ending) > duración real del episodio (AniSkip o
+    // estimado de jkanime, con un margen) > duración del catálogo interno
+    // como último respaldo. Si no hay NINGUNO de los tres, no se puede saber
+    // el final por tiempo — el aviso no se dispara (`endThresholdSeconds`
+    // queda inalcanzable); solo quedaría el evento nativo "video terminó" del
+    // player, que no existe acá por ser un iframe cross-origin.
     const endThresholdSeconds =
-      realDurationSeconds ?? durationSecondsHint ?? DEFAULT_EPISODE_DURATION_SECONDS;
+      endingStartSeconds ??
+      (realDurationSeconds != null
+        ? realDurationSeconds - END_THRESHOLD_MARGIN_SECONDS
+        : durationSecondsHint != null
+          ? durationSecondsHint - END_THRESHOLD_MARGIN_SECONDS
+          : Infinity);
     const interval = setInterval(() => {
       elapsedSecondsRef.current += 1;
 
@@ -256,7 +277,30 @@ function EpisodePlayer({
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-arranca el timer al cambiar de sesión/fuente o al llegar el resume point; no en cada cambio de `saveProgress`.
-  }, [sessionId, currentSource?.id, resumePointQuery.data]);
+  }, [sessionId, currentSource?.id, hasDirectControl, resumePointQuery.data]);
+
+  // Con `directUrl`, el progreso/fin real llega del propio `<video>` (evento
+  // nativo `ended`, no aproximación por tiempo) — mismo guardado cada ~10s
+  // vía `lastSaveRef`, sin necesidad del `setInterval` de arriba.
+  function handleNativeProgress(currentTimeSeconds: number, videoDurationSeconds: number) {
+    if (!sessionId) return;
+    const now = Date.now();
+    if (now - lastSaveRef.current < PROGRESS_SAVE_INTERVAL_MS) return;
+    lastSaveRef.current = now;
+    saveProgress.mutate({
+      sessionId,
+      positionSeconds: Math.floor(currentTimeSeconds),
+      durationSeconds: Math.floor(videoDurationSeconds) || DEFAULT_EPISODE_DURATION_SECONDS,
+    });
+  }
+
+  function handleNativeEnded() {
+    setEpisodeEnded(true);
+  }
+
+  function handleNativeError() {
+    if (currentSource) setFailedDirectSourceId(currentSource.id);
+  }
 
   function handleLanguageChange(languageCode: string) {
     setManualLanguage(languageCode);
@@ -337,7 +381,7 @@ function EpisodePlayer({
         <Heading level="h2">
           T{metadata?.seasonNumber} · Ep. {metadata?.episodeNumber} — {metadata?.title}
         </Heading>
-        {hasResumePoint ? (
+        {hasResumePoint && !hasDirectControl ? (
           <Text variant="muted">
             Ibas por el minuto {formatMinutes(resumePointQuery.data!.positionSeconds)} — el
             reproductor es de un proveedor externo, retoma manualmente desde sus controles.
@@ -347,7 +391,20 @@ function EpisodePlayer({
 
       {currentSource ? (
         <div className="relative">
-          <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
+          {hasDirectControl && currentSource.directUrl ? (
+            <NativeVideoPlayer
+              src={currentSource.directUrl}
+              title={`${metadata?.animeTitle} — ${metadata?.title}`}
+              poster={metadata?.thumbnailUrl}
+              skipIntervals={metadata?.skipIntervals ?? []}
+              startAtSeconds={hasResumePoint ? resumePointQuery.data!.positionSeconds : 0}
+              onProgress={handleNativeProgress}
+              onEnded={handleNativeEnded}
+              onError={handleNativeError}
+            />
+          ) : (
+            <VideoPlayer src={currentSource.url} title={`${metadata?.animeTitle} — ${metadata?.title}`} />
+          )}
           {episodeEnded && next ? (
             <NextEpisodePrompt next={next} onCancel={() => setEpisodeEnded(false)} />
           ) : null}

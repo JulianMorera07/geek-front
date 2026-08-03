@@ -20,10 +20,31 @@ export interface PlaybackSource {
   providerId: string;
   serverName: string;
   url: string;
+  /**
+   * URL del archivo de video real (mp4/m3u8), best-effort — el backend la
+   * resuelve vía yt-dlp cuando el proveedor lo permite (voe.sx, mixdrop,
+   * ok.ru, streamsb; nunca mega.nz ni yourupload). `null` no es un error: es
+   * el caso normal cuando el proveedor no lo permite o cambió su ofuscación.
+   * Cuando existe, da control real (seek, saltar op/ed, fin exacto) vía un
+   * `<video>` propio en vez del `<iframe>` de siempre.
+   */
+  directUrl: string | null;
   quality: StreamQuality;
   audio: AudioTrack;
   subtitles: Subtitle[];
   isActive: boolean;
+}
+
+/**
+ * Tramo de intro (`op`) u outro/ending (`ed`) detectado por AniSkip. Un
+ * array vacío NO significa que el episodio no tenga — significa que todavía
+ * no hay dato para ese episodio puntual (cobertura floja en estrenos
+ * recientes). No usar para inferir ausencia de intro/outro.
+ */
+export interface SkipInterval {
+  kind: 'op' | 'ed';
+  startSeconds: number;
+  endSeconds: number;
 }
 
 export interface PlaybackMetadata {
@@ -33,7 +54,13 @@ export interface PlaybackMetadata {
   animeId: string;
   seasonNumber: number;
   episodeNumber: number;
+  /**
+   * Puede variar levemente entre episodios de la misma serie (antes era un
+   * valor fijo por serie) — más preciso ahora. `null` si ni AniSkip ni el
+   * estimado de jkanime tienen dato para este episodio.
+   */
   durationSeconds: number | null;
+  skipIntervals: SkipInterval[];
   thumbnailUrl: string | null;
 }
 
