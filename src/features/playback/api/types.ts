@@ -29,6 +29,8 @@ export interface PlaybackSource {
 export interface PlaybackMetadata {
   title: string;
   animeTitle: string;
+  /** Id del catálogo interno — presente incluso en el flujo externo una vez el anime fue ingerido vía el bridge. */
+  animeId: string;
   seasonNumber: number;
   episodeNumber: number;
   durationSeconds: number | null;

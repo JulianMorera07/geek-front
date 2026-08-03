@@ -10,16 +10,7 @@ import {
 import { useAnimeEpisodesQuery } from '@/features/anime/api/queries';
 import { EpisodePlayer } from '@/features/playback/components/episode-player';
 import { storeContinueWatching } from '@/features/playback/continue-watching-storage';
-import type { AdjacentEpisode, EpisodeReference } from '@/features/playback/api/types';
-
-function toAdjacentEpisode(ref: EpisodeReference | undefined | null): AdjacentEpisode | null {
-  if (!ref) return null;
-  return {
-    href: `/anime/${ref.animeId}/watch/${ref.episodeId}`,
-    seasonNumber: ref.seasonNumber,
-    episodeNumber: ref.episodeNumber,
-  };
-}
+import { toAdjacentEpisode } from '@/features/playback/adjacent-episode';
 
 export interface WatchPageClientProps {
   animeId: string;

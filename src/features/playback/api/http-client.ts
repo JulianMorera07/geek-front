@@ -37,6 +37,8 @@ interface RawPlaybackSource {
 interface RawPlaybackMetadata {
   title: string;
   anime_title: string;
+  /** Nuevo (backend): id del catálogo interno, incluso en el flujo externo (una vez ingerido vía el bridge) — permite armar `/next` real en vez del salto optimista ±1. */
+  anime_id: string;
   season_number: number;
   episode_number: number;
   duration_seconds: number | null;
@@ -108,6 +110,7 @@ function mapEpisodePlayback(raw: RawEpisodePlayback): EpisodePlayback {
     metadata: {
       title: raw.metadata.title,
       animeTitle: raw.metadata.anime_title,
+      animeId: raw.metadata.anime_id,
       seasonNumber: raw.metadata.season_number,
       episodeNumber: raw.metadata.episode_number,
       durationSeconds: raw.metadata.duration_seconds,

@@ -2,10 +2,14 @@
 
 import * as React from 'react';
 
-import { useExternalEpisodePlaybackQuery } from '@/features/playback/api/queries';
+import {
+  useExternalEpisodePlaybackQuery,
+  useNextEpisodeQuery,
+  usePreviousEpisodeQuery,
+} from '@/features/playback/api/queries';
 import { EpisodePlayer } from '@/features/playback/components/episode-player';
 import { storeContinueWatching } from '@/features/playback/continue-watching-storage';
-import type { AdjacentEpisode } from '@/features/playback/api/types';
+import { toAdjacentEpisode } from '@/features/playback/adjacent-episode';
 
 export interface ExternalWatchPageClientProps {
   providerId: string;
@@ -13,19 +17,19 @@ export interface ExternalWatchPageClientProps {
   episodeNumber: number;
 }
 
-function externalEpisodeHref(providerId: string, externalId: string, episodeNumber: number): string {
-  return `/watch/external/${encodeURIComponent(providerId)}/${encodeURIComponent(externalId)}/${episodeNumber}`;
-}
-
 /**
  * Reproducción directa de un episodio a partir de un resultado de `/latest`
  * (provider_id + external_id + episode_number), sin pasar primero por la
- * ficha del anime. Sin `animeId` interno no hay endpoint que confirme si el
- * episodio siguiente/anterior existe de verdad — a diferencia del flujo
- * interno, acá `previous`/`next` se arman de forma optimista (± 1 sobre el
- * número actual). Si no existe, el reproductor de destino cae en el mismo
- * `ErrorView` de "Episodio no encontrado" que ya maneja `EpisodePlayer` —
- * mismo trade-off aceptado que el estimado de duración genérico.
+ * ficha del anime. El backend ahora informa `metadata.animeId` (el anime
+ * queda ingerido al primer playback) — con eso se arma `previous`/`next`
+ * contra los mismos endpoints reales del catálogo interno (`/next`,
+ * `/previous`), en vez de adivinar ±1 sobre el número de episodio sin forma
+ * de confirmar si de verdad existía.
+ *
+ * El progreso también se guarda bajo la clave del `animeId` interno (no por
+ * provider+externalId) — así queda unificado con el flujo interno: si el
+ * usuario después entra a la ficha del anime, `ContinueWatchingBanner`
+ * refleja el episodio visto acá, y viceversa.
  */
 function ExternalWatchPageClient({
   providerId,
@@ -34,41 +38,36 @@ function ExternalWatchPageClient({
 }: Readonly<ExternalWatchPageClientProps>) {
   const playbackQuery = useExternalEpisodePlaybackQuery(providerId, externalId, episodeNumber);
   const metadata = playbackQuery.data?.metadata;
+  const episodeId = playbackQuery.data?.episodeId;
 
-  const previous: AdjacentEpisode | null =
-    episodeNumber > 1
-      ? {
-          href: externalEpisodeHref(providerId, externalId, episodeNumber - 1),
-          seasonNumber: metadata?.seasonNumber ?? 1,
-          episodeNumber: episodeNumber - 1,
-        }
-      : null;
-  const next: AdjacentEpisode = {
-    href: externalEpisodeHref(providerId, externalId, episodeNumber + 1),
-    seasonNumber: metadata?.seasonNumber ?? 1,
-    episodeNumber: episodeNumber + 1,
-  };
+  const nextQuery = useNextEpisodeQuery(
+    metadata?.animeId ?? '',
+    metadata?.seasonNumber,
+    metadata?.episodeNumber,
+  );
+  const previousQuery = usePreviousEpisodeQuery(
+    metadata?.animeId ?? '',
+    metadata?.seasonNumber,
+    metadata?.episodeNumber,
+  );
 
-  // Registra "último episodio visto" por serie externa (misma idea que el
-  // flujo interno, ver `WatchPageClient`) — clave por provider+externalId ya
-  // que acá no hay `animeId` de catálogo.
   React.useEffect(() => {
-    if (!metadata) return;
-    storeContinueWatching(`${providerId}:${externalId}`, {
+    if (!metadata || !episodeId) return;
+    storeContinueWatching(metadata.animeId, {
       animeTitle: metadata.animeTitle,
       thumbnailUrl: metadata.thumbnailUrl,
-      href: externalEpisodeHref(providerId, externalId, episodeNumber),
+      href: `/anime/${metadata.animeId}/watch/${episodeId}`,
       seasonNumber: metadata.seasonNumber,
       episodeNumber: metadata.episodeNumber,
     });
-  }, [providerId, externalId, episodeNumber, metadata]);
+  }, [metadata, episodeId]);
 
   return (
     <EpisodePlayer
       watchKey={`${providerId}:${externalId}:${episodeNumber}`}
       playbackQuery={playbackQuery}
-      previous={previous}
-      next={next}
+      previous={toAdjacentEpisode(previousQuery.data)}
+      next={toAdjacentEpisode(nextQuery.data)}
     />
   );
 }
