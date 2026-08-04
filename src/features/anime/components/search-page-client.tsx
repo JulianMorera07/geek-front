@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { Heading } from '@/components/base/typography';
+import { Heading, Text } from '@/components/base/typography';
 import { SearchInput } from '@/components/base/search-input';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
@@ -37,8 +37,15 @@ function SearchPageClient({ initialQuery = '' }: SearchPageClientProps) {
   const catalogQuery = useCatalogInfiniteQuery(queryParams);
   const animes = catalogQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
-  const catalogResolved = !catalogQuery.isPending && !catalogQuery.isError;
-  const useExternal = catalogResolved && animes.length === 0 && trimmedQuery.length > 0;
+  // El catálogo interno hoy está mayormente vacío/inestable — la fuente real
+  // de resultados es `/search` (Provider Framework). Antes solo se caía a la
+  // externa cuando el catálogo respondía vacío; si directamente fallaba
+  // (error, no solo "sin resultados"), se quedaba mostrando ese error en vez
+  // de probar la fuente que sí funciona. Ahora cualquiera de los dos casos
+  // dispara la externa.
+  const catalogSettled = !catalogQuery.isPending;
+  const useExternal =
+    catalogSettled && trimmedQuery.length > 0 && (catalogQuery.isError || animes.length === 0);
 
   const externalQuery = useSearchInfiniteQuery(useExternal ? trimmedQuery : '');
   const externalResults = externalQuery.data?.pages.flat() ?? [];
@@ -46,10 +53,23 @@ function SearchPageClient({ initialQuery = '' }: SearchPageClientProps) {
   const emptyTitle = trimmedQuery ? `Sin resultados para "${trimmedQuery}"` : undefined;
   const emptyDescription = 'Prueba con otro título o ajusta los filtros.';
 
+  const activeQuery = useExternal ? externalQuery : catalogQuery;
+  const resultCount = useExternal ? externalResults.length : animes.length;
+  const isSettled = !activeQuery.isPending && !activeQuery.isError;
+  const showCount = trimmedQuery.length > 0 && isSettled && resultCount > 0;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Heading level="h2">Buscar</Heading>
+        <Heading level="h2">
+          {trimmedQuery ? (
+            <>
+              Resultados para <span className="text-brand">&quot;{trimmedQuery}&quot;</span>
+            </>
+          ) : (
+            'Buscar'
+          )}
+        </Heading>
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -57,6 +77,12 @@ function SearchPageClient({ initialQuery = '' }: SearchPageClientProps) {
           className="max-w-md"
           autoFocus
         />
+        {showCount ? (
+          <Text variant="muted">
+            {resultCount} {resultCount === 1 ? 'resultado' : 'resultados'}
+            {activeQuery.hasNextPage ? ' (sigue cargando más al hacer scroll)' : ''}
+          </Text>
+        ) : null}
       </div>
 
       <AnimeFilters value={filters} onChange={setFilters} />
