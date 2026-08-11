@@ -1,16 +1,13 @@
 'use client';
 
-import * as React from 'react';
 import { ClapperboardIcon } from 'lucide-react';
 
-import { Grid } from '@/components/base/grid';
-import { Pagination } from '@/components/base/pagination';
 import { EmptyState } from '@/components/base/empty-state';
 import { ErrorView } from '@/components/base/error-view';
-import { paginateArray } from '@/lib/paginate';
 import { useAnimeEpisodesQuery } from '@/features/anime/api/queries';
-import { EpisodeCard } from '@/features/anime/components/episode-card';
+import { EpisodeRangeAccordion } from '@/features/anime/components/episode-range-accordion';
 import { EpisodeListSkeleton } from '@/features/anime/components/skeletons';
+import { useContinueWatchingEntry } from '@/features/playback/hooks/use-continue-watching-entry';
 
 export interface EpisodeListProps {
   animeId: string;
@@ -19,17 +16,17 @@ export interface EpisodeListProps {
 }
 
 /**
- * Lista de episodios de un anime. El backend (`GET /anime/:id/episodes`)
- * siempre devuelve el listado completo (no pagina) — la paginación es
- * puramente de presentación en el cliente sobre el array ya cargado, no un
- * segundo fetch. Scroll infinito no aplica: no hay "página siguiente" que pedir.
+ * Lista de episodios de un anime, agrupada en tramos por acordeón (ver
+ * `EpisodeRangeAccordion`) en vez de paginación numerada. El backend
+ * (`GET /anime/:id/episodes`) pagina la respuesta, pero `fetchAnimeEpisodes`
+ * ya trae todas las páginas concatenadas antes de llegar acá.
  */
-function EpisodeList({ animeId, animeThumbnailUrl, pageSize = 12 }: EpisodeListProps) {
-  const [page, setPage] = React.useState(1);
+function EpisodeList({ animeId, animeThumbnailUrl, pageSize = 50 }: Readonly<EpisodeListProps>) {
   const query = useAnimeEpisodesQuery(animeId);
+  const continueWatching = useContinueWatchingEntry(animeId);
 
   if (query.isPending) {
-    return <EpisodeListSkeleton count={pageSize} />;
+    return <EpisodeListSkeleton count={12} />;
   }
 
   if (query.isError) {
@@ -52,22 +49,14 @@ function EpisodeList({ animeId, animeThumbnailUrl, pageSize = 12 }: EpisodeListP
     );
   }
 
-  const { items, pageCount } = paginateArray(query.data, page, pageSize);
-
   return (
-    <div className="flex flex-col gap-6">
-      <Grid columns="wide">
-        {items.map((episode) => (
-          <EpisodeCard
-            key={episode.id}
-            animeId={animeId}
-            episode={episode}
-            animeThumbnailUrl={animeThumbnailUrl}
-          />
-        ))}
-      </Grid>
-      <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
-    </div>
+    <EpisodeRangeAccordion
+      animeId={animeId}
+      episodes={query.data}
+      animeThumbnailUrl={animeThumbnailUrl}
+      chunkSize={pageSize}
+      currentEpisodeNumber={continueWatching?.episodeNumber}
+    />
   );
 }
 

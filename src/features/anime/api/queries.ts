@@ -62,7 +62,7 @@ export function useAnimeDetailQuery(animeId: string) {
   });
 }
 
-/** El backend no pagina episodios (siempre devuelve todos) — se pagina solo en el cliente. */
+/** El backend pagina `/episodes` server-side, pero `fetchAnimeEpisodes` ya trae todas las páginas concatenadas — la UI sigue paginando solo en el cliente. */
 export function useAnimeEpisodesQuery(animeId: string) {
   return useQuery({
     queryKey: animeKeys.episodes(animeId),

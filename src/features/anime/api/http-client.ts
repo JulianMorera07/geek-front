@@ -402,10 +402,37 @@ export async function fetchAnimeByExternalReference(
   return mapAnimeDetail(raw);
 }
 
-/** GET /anime/:id/episodes — el backend devuelve todos los episodios ya aplanados, sin paginar. */
+/**
+ * GET /anime/:id/episodes — el backend pagina esta respuesta (`{items, total,
+ * page, page_size}`), pero la UI (`EpisodeList`, `SeasonEpisodeList`) sigue
+ * paginando en el cliente sobre el listado completo — no vale la pena un
+ * segundo fetch por página solo para pasar de pantalla. Se piden todas las
+ * páginas en secuencia (page_size configurable) y se concatenan antes de
+ * devolver.
+ *
+ * `NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE` (no `EPISODES_FETCH_PAGE_SIZE` a
+ * secas): esta función corre también en el navegador (la llaman hooks
+ * `'use client'`), y Next solo inyecta en el bundle del cliente las env vars
+ * con ese prefijo — cualquier otra queda `undefined` fuera del servidor. Ver
+ * `.env.example`.
+ */
+const EPISODES_FETCH_PAGE_SIZE = Number(process.env.NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE) || 50;
+
 export async function fetchAnimeEpisodes(animeId: string): Promise<Episode[]> {
-  const raw = await apiFetch<RawEpisode[]>(`/anime/${encodeURIComponent(animeId)}/episodes`);
-  return raw.map(mapEpisode);
+  const episodes: RawEpisode[] = [];
+  let page = 1;
+
+  while (true) {
+    const raw = await apiFetch<RawPage<RawEpisode>>(`/anime/${encodeURIComponent(animeId)}/episodes`, {
+      page: String(page),
+      page_size: String(EPISODES_FETCH_PAGE_SIZE),
+    });
+    episodes.push(...raw.items);
+    if (episodes.length >= raw.total || raw.items.length === 0) break;
+    page += 1;
+  }
+
+  return episodes.map(mapEpisode);
 }
 
 /** GET /genres */
