@@ -222,7 +222,7 @@ jobs:
         env:
           # ── Backend interno ─────────────────────────────────────────────────
           BACKEND_INTERNAL_HOST: ${{ secrets.BACKEND_INTERNAL_HOST }}
-          NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE ${{ vars.NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE }}
+          NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE: ${{ vars.NEXT_PUBLIC_EPISODES_FETCH_PAGE_SIZE }}
 
       # ── Leer service.yml e inyectar la imagen del build actual ─────────────
       - name: Read service.yml and inject image
