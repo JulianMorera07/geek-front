@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionLoader } from '@/components/base/loading';
 import { useAuth } from '@/features/auth/use-auth';
 import { SettingsForm } from '@/features/auth/components/settings-form';
+import { PushNotificationsToggle } from '@/features/push/components/push-notifications-toggle';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -27,6 +28,13 @@ export default function SettingsPage() {
           <SettingsForm user={user} />
         </CardContent>
       </Card>
+
+      {/* Separado de "Notificaciones" de arriba a propósito: ese es un flag
+          de preferencia guardado en el perfil; esto es la suscripción real
+          del navegador (permiso + Web Push), con su propio flujo. El
+          componente trae su propio Card y no renderiza nada si el navegador
+          no la soporta o el backend no tiene las keys configuradas todavía. */}
+      <PushNotificationsToggle />
     </Container>
   );
 }

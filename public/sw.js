@@ -34,3 +34,42 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// Muestra la notificación push que mande el backend (ej. "salió el capítulo
+// nuevo de X"). El payload es JSON con `title`/`body`/`url` — si no viene
+// como JSON válido, se usa un texto genérico en vez de fallar silenciosamente
+// (una notificación push sin `event.waitUntil(showNotification)` no se
+// muestra y el navegador puede desactivar el permiso por "silenciosa").
+self.addEventListener('push', (event) => {
+  let payload = { title: 'GeekBaku', body: 'Tienes una notificación nueva.', url: '/' };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    // payload no era JSON — se usa el genérico de arriba.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: payload.url },
+    }),
+  );
+});
+
+// Al hacer click en la notificación, enfoca una pestaña ya abierta del sitio
+// si existe, o abre una nueva en la URL del payload (ej. la ficha del anime).
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url ?? '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+      for (const client of clientsList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    }),
+  );
+});

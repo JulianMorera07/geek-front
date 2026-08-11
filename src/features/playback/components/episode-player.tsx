@@ -23,6 +23,7 @@ import { SourceSelector } from '@/features/playback/components/source-selector';
 import { SubtitleSelector } from '@/features/playback/components/subtitle-selector';
 import { EpisodeNavigation } from '@/features/playback/components/episode-navigation';
 import { getStoredSessionId, storeSessionId } from '@/features/playback/session-storage';
+import { authSessionManager } from '@/features/auth/session-manager';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isNotFoundError } from '@/lib/api-error';
 import type { AdjacentEpisode, EpisodePlayback, PlaybackSource } from '@/features/playback/api/types';
@@ -187,21 +188,28 @@ function EpisodePlayer({
       : defaultSubtitleLanguage;
 
   const episodeId = playbackQuery.data?.episodeId;
+  const sessionAnimeId = playbackQuery.data?.metadata.animeId;
 
   // Crea una sesión nueva solo si no había una guardada para este episodio.
+  // Si hay sesión de usuario iniciada, se manda junto con `anime_id` — eso es
+  // lo que liga la sesión al usuario para `GET /playback/continue-watching`.
+  // Anónimo (sin login) sigue funcionando exactamente igual que antes.
   React.useEffect(() => {
     if (!episodeId || sources.length === 0) return;
     if (sessionId) return;
     if (sessionRequestedForRef.current === watchKey) return;
     sessionRequestedForRef.current = watchKey;
-    createSession.mutate(episodeId, {
-      onSuccess: (created) => {
-        storeSessionId(watchKey, created.id);
-        setSessionId(created.id);
+    createSession.mutate(
+      { episodeId, animeId: sessionAnimeId, accessToken: authSessionManager.getAccessToken() ?? undefined },
+      {
+        onSuccess: (created) => {
+          storeSessionId(watchKey, created.id);
+          setSessionId(created.id);
+        },
       },
-    });
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- se dispara una sola vez por watchKey sin sesión guardada, no en cada cambio de `createSession`.
-  }, [episodeId, watchKey, sources.length, sessionId]);
+  }, [episodeId, sessionAnimeId, watchKey, sources.length, sessionId]);
 
   // Sincroniza la fuente/calidad con la sesión (recién creada o reutilizada).
   React.useEffect(() => {

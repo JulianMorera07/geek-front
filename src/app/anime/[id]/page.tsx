@@ -7,9 +7,11 @@ import { AnimeCover } from '@/features/anime/components/anime-cover';
 import { Badge } from '@/components/ui/badge';
 import { ContinueWatchingBanner } from '@/features/playback/components/continue-watching-banner';
 import { EpisodeList } from '@/features/anime/components/episode-list';
+import { SeasonEpisodeList } from '@/features/anime/components/season-episode-list';
 import { RelatedAnimeRow } from '@/features/anime/components/related-anime-row';
 import { fetchAnimeById, fetchGenres } from '@/features/anime/api/http-client';
 import { statusLabel, statusVariant } from '@/features/anime/status';
+import { FavoriteButton } from '@/features/favorites/components/favorite-button';
 import { isNotFoundError } from '@/lib/api-error';
 
 export default async function AnimeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -66,6 +68,8 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ id
               {anime.synopsis}
             </Text>
           ) : null}
+
+          <FavoriteButton animeId={anime.id} variant="full" className="w-fit" />
         </div>
       </div>
 
@@ -73,7 +77,22 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ id
 
       <section className="flex flex-col gap-4">
         <Heading level="h3">Episodios</Heading>
-        <EpisodeList animeId={anime.id} animeThumbnailUrl={anime.thumbnailUrl} pageSize={12} />
+        {anime.seasons.length > 0 ? (
+          // Fuente primaria: `anime.seasons` ya viene en el detalle (sin
+          // fetch aparte) y agrupa por temporada real cuando el proveedor
+          // las trae así (hoy: VerAnime). Con una sola temporada,
+          // `SeasonEpisodeList` cae solo al grid plano de siempre.
+          <SeasonEpisodeList
+            animeId={anime.id}
+            seasons={anime.seasons}
+            animeThumbnailUrl={anime.thumbnailUrl}
+            pageSize={12}
+          />
+        ) : (
+          // Respaldo si el detalle no trae `seasons` poblado — el listado
+          // plano de `/anime/:id/episodes` sigue funcionando igual que antes.
+          <EpisodeList animeId={anime.id} animeThumbnailUrl={anime.thumbnailUrl} pageSize={12} />
+        )}
       </section>
 
       {anime.relations.length > 0 ? (

@@ -79,6 +79,23 @@ export interface EpisodeReference {
 }
 
 /**
+ * `GET /playback/continue-watching` (requiere sesión) — progreso real del
+ * usuario logueado, ligado a las sesiones de playback que crea con
+ * `anime_id` + `Authorization`. Reemplaza el `localStorage` anónimo
+ * (`continue-watching-storage.ts`) cuando hay sesión, que sigue siendo el
+ * respaldo para usuarios sin cuenta.
+ */
+export interface ContinueWatchingRemoteEntry {
+  animeId: string;
+  episodeId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  animeTitle: string | null;
+  thumbnailUrl: string | null;
+  updatedAt: string | null;
+}
+
+/**
  * Forma genérica para "episodio adyacente" que usan `EpisodeNavigation` y
  * `NextEpisodePrompt` — a diferencia de `EpisodeReference` (que exige
  * `animeId`/`episodeId` del catálogo interno), `href` ya viene resuelto por

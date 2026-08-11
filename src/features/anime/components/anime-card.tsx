@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { fetchAnimeById } from '@/features/anime/api/http-client';
 import { animeKeys } from '@/features/anime/api/queries';
 import { statusLabel, statusVariant } from '@/features/anime/status';
+import { FavoriteButton } from '@/features/favorites/components/favorite-button';
 import type { AnimeSummary } from '@/features/anime/api/types';
 
 export interface AnimeCardProps {
@@ -54,6 +55,7 @@ function AnimeCard({ anime, className }: AnimeCardProps) {
             <Badge variant={statusVariant(anime.status)} className="absolute top-2 left-2">
               {statusLabel(anime.status)}
             </Badge>
+            <FavoriteButton animeId={anime.id} className="absolute top-2 right-2" />
             {anime.rating ? (
               <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
                 <StarIcon className="fill-warning text-warning size-3" />

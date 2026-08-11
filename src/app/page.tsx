@@ -1,5 +1,6 @@
 import { Container } from '@/components/layout/container';
 import { ErrorView } from '@/components/base/error-view';
+import { InstallAppBanner } from '@/components/base/install-app-banner';
 import { DiscoveryBanner } from '@/features/anime/components/discovery-banner';
 import { DiscoveryRow } from '@/features/anime/components/discovery-row';
 import { HomeContinueWatchingBanner } from '@/features/playback/components/home-continue-watching-banner';
@@ -64,6 +65,8 @@ export default async function HomePage() {
           description="El catálogo interno no respondió. Las secciones de abajo son independientes y pueden seguir funcionando."
         />
       ) : null}
+
+      <InstallAppBanner />
 
       <HomeContinueWatchingBanner />
 

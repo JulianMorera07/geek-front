@@ -1,6 +1,7 @@
 import { httpRequest, resolveApiBaseUrl, resolveMediaUrl } from '@/lib/http';
 import type {
   AudioTrack,
+  ContinueWatchingRemoteEntry,
   EpisodePlayback,
   EpisodeReference,
   PlaybackSession,
@@ -226,13 +227,53 @@ export async function fetchPreviousEpisode(
   return raw ? mapEpisodeReference(raw) : null;
 }
 
-/** POST /playback/sessions — sesión anónima (no requiere sesión de usuario, ver docs/playback-integration.md). */
-export async function createPlaybackSession(episodeId: string): Promise<PlaybackSession> {
+/**
+ * POST /playback/sessions — funciona sin sesión de usuario (anónima, ver
+ * docs/playback-integration.md). Si hay sesión iniciada, se manda
+ * `Authorization` + `anime_id` en el body: eso es lo que liga la sesión al
+ * usuario para que aparezca en `GET /playback/continue-watching`. Ambos
+ * opcionales — anónimo sigue funcionando exactamente igual que antes.
+ */
+export async function createPlaybackSession(
+  episodeId: string,
+  options: { animeId?: string; accessToken?: string } = {},
+): Promise<PlaybackSession> {
   const raw = await httpRequest<RawPlaybackSession>(`${API_BASE_URL}/playback/sessions`, {
     method: 'POST',
-    body: { episode_id: episodeId },
+    body: options.animeId ? { episode_id: episodeId, anime_id: options.animeId } : { episode_id: episodeId },
+    accessToken: options.accessToken,
   });
   return mapSession(raw);
+}
+
+interface RawContinueWatchingEntry {
+  anime_id: string;
+  episode_id: string;
+  season_number: number;
+  episode_number: number;
+  anime_title?: string | null;
+  thumbnail_url?: string | null;
+  updated_at?: string | null;
+}
+
+function mapContinueWatchingEntry(raw: RawContinueWatchingEntry): ContinueWatchingRemoteEntry {
+  return {
+    animeId: raw.anime_id,
+    episodeId: raw.episode_id,
+    seasonNumber: raw.season_number,
+    episodeNumber: raw.episode_number,
+    animeTitle: raw.anime_title ?? null,
+    thumbnailUrl: resolveMediaUrl(raw.thumbnail_url ?? null),
+    updatedAt: raw.updated_at ?? null,
+  };
+}
+
+/** GET /playback/continue-watching — requiere sesión. Progreso real del usuario, una entrada por anime. */
+export async function fetchContinueWatching(accessToken: string): Promise<ContinueWatchingRemoteEntry[]> {
+  const raw = await httpRequest<RawContinueWatchingEntry[]>(`${API_BASE_URL}/playback/continue-watching`, {
+    accessToken,
+  });
+  return raw.map(mapContinueWatchingEntry);
 }
 
 export async function selectPlaybackSource(

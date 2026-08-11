@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import {
   createPlaybackSession,
+  fetchContinueWatching,
   fetchEpisodePlayback,
   fetchExternalEpisodePlayback,
   fetchNextEpisode,
@@ -24,6 +25,7 @@ export const playbackKeys = {
   adjacent: (animeId: string, seasonNumber: number, episodeNumber: number, dir: 'next' | 'prev') =>
     [...playbackKeys.all, 'adjacent', dir, animeId, seasonNumber, episodeNumber] as const,
   resumePoint: (sessionId: string) => [...playbackKeys.all, 'resume-point', sessionId] as const,
+  continueWatching: () => [...playbackKeys.all, 'continue-watching'] as const,
 };
 
 /**
@@ -83,7 +85,27 @@ export function usePreviousEpisodeQuery(
 }
 
 export function useCreatePlaybackSessionMutation() {
-  return useMutation({ mutationFn: (episodeId: string) => createPlaybackSession(episodeId) });
+  return useMutation({
+    mutationFn: ({
+      episodeId,
+      animeId,
+      accessToken,
+    }: {
+      episodeId: string;
+      animeId?: string;
+      accessToken?: string;
+    }) => createPlaybackSession(episodeId, { animeId, accessToken }),
+  });
+}
+
+/** `GET /playback/continue-watching` — requiere sesión, por eso `enabled` exige `accessToken`. */
+export function useContinueWatchingQuery(accessToken: string | null) {
+  return useQuery({
+    queryKey: playbackKeys.continueWatching(),
+    queryFn: () => fetchContinueWatching(accessToken!),
+    enabled: Boolean(accessToken),
+    staleTime: 30_000,
+  });
 }
 
 export function useSelectPlaybackSourceMutation() {

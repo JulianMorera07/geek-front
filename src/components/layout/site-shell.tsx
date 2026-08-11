@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClapperboardIcon, CompassIcon, FlameIcon, HomeIcon, TrendingUpIcon } from 'lucide-react';
+import { ClapperboardIcon, CompassIcon, FlameIcon, HeartIcon, HomeIcon, TrendingUpIcon } from 'lucide-react';
 
 import { Navbar } from '@/components/layout/navbar';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@/features/anime/components/anime-search-command';
 import { useOngoingCatalogQuery } from '@/features/anime/api/queries';
 import { UserMenu } from '@/features/auth/components/user-menu';
+import { useAuth } from '@/features/auth/use-auth';
 
 const primaryNav = [
   { title: 'Inicio', url: '/', icon: HomeIcon },
@@ -42,8 +43,13 @@ function SiteShell({ children }: { children: React.ReactNode }) {
   const [commandOpen, setCommandOpen] = React.useState(false);
   useCommandShortcut(() => setCommandOpen(true));
 
+  const { isAuthenticated } = useAuth();
   const ongoingQuery = useOngoingCatalogQuery();
   const ongoingAnimes = ongoingQuery.data?.items ?? [];
+
+  const navItems = isAuthenticated
+    ? [...primaryNav, { title: 'Favoritos', url: '/favorites', icon: HeartIcon }]
+    : primaryNav;
 
   return (
     <SidebarProvider>
@@ -57,7 +63,7 @@ function SiteShell({ children }: { children: React.ReactNode }) {
         groups={[
           {
             label: 'Navegación',
-            items: primaryNav.map((item) => ({
+            items: navItems.map((item) => ({
               ...item,
               isActive: pathname === item.url,
             })),
