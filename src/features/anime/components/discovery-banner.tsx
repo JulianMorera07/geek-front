@@ -3,7 +3,8 @@
 import { type TouchEvent, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ChevronLeftIcon, ChevronRightIcon, PlayIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,15 @@ interface DiscoveryBannerProps {
 /** Un swipe más corto que esto se ignora — evita que un tap accidental con un poco de arrastre cambie de slide. */
 const SWIPE_THRESHOLD_PX = 50;
 
+/**
+ * Spotlight de la home: panel con degradado (marca) + póster en su propia
+ * card, en vez del hero panorámico anterior que estiraba el póster (vertical
+ * por naturaleza — son carátulas, no fotos panorámicas) sobre un marco ancho.
+ * Ese enfoque siempre se veía "recortado" o "en caja" pase lo que pase con
+ * blur/mask, porque la proporción de origen nunca calza con un banner 16:6 —
+ * reportado en vivo dos veces. Acá el póster se muestra en SU proporción
+ * natural (2:3), sin forzar nada, con su propio resplandor detrás.
+ */
 export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBannerProps>) {
   const [current, setCurrent] = useState(0);
   // mounted evita que el banner intente renderizar contenido dinámico
@@ -25,21 +35,22 @@ export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBanner
   // cliente toma el control tras montar. Esto elimina el error #418.
   const [mounted, setMounted] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted || results.length <= 1) return;
+    if (!mounted || prefersReducedMotion || results.length <= 1) return;
     const interval = setInterval(() => {
       setCurrent((prev) => (prev + 1) % results.length);
-    }, 5000);
-    // `current` en las deps: cualquier navegación manual (flechas o puntos)
-    // reinicia el temporizador, para que no salte solo a los dos segundos de
-    // haber elegido algo a mano.
+    }, 6000);
+    // `current` en las deps: cualquier navegación manual (flechas, puntos o
+    // swipe) reinicia el temporizador, para que no salte solo a los pocos
+    // segundos de haber elegido algo a mano.
     return () => clearInterval(interval);
-  }, [mounted, results.length, current]);
+  }, [mounted, prefersReducedMotion, results.length, current]);
 
   if (!mounted || results.length === 0) return null;
 
@@ -75,66 +86,67 @@ export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBanner
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       className={cn(
-        'group/banner relative w-full touch-pan-y overflow-hidden rounded-xl bg-muted',
-        'aspect-[3/4] sm:aspect-video lg:aspect-[16/6]',
+        'group/banner from-primary/15 border-border/60 relative w-full touch-pan-y overflow-hidden rounded-2xl border bg-gradient-to-br via-background to-background',
         className,
       )}
     >
-      {item.thumbnailUrl && (
-        <>
-          {/* Fondo: la misma imagen ampliada y desenfocada, rellena todo el
-              marco sin importar su proporción real. Sin esto, `object-cover`
-              directo sobre pósters verticales en un marco panorámico (desktop)
-              recorta casi toda la imagen — se ve "horrible", confirmado en
-              vivo. */}
-          <Image
-            src={item.thumbnailUrl}
-            alt=""
-            aria-hidden
-            fill
-            className="scale-110 object-cover opacity-40 blur-2xl"
-            unoptimized
-          />
-          {/* Primer plano: la imagen completa, sin recortar (`object-contain`)
-              — se ve entera sin importar si es un póster vertical o un banner
-              ancho. El `mask-image` difumina sus bordes izquierdo/derecho
-              para que se funda con el fondo borroso en vez de quedar como un
-              recuadro nítido flotando encima (se veía "en caja" — reportado
-              en vivo). */}
-          <div
-            className="absolute inset-0"
-            style={{
-              maskImage: 'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
-              WebkitMaskImage:
-                'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
-            }}
-          >
-            <Image
-              src={item.thumbnailUrl}
-              alt={item.title}
-              fill
-              className="object-contain"
-              unoptimized
-            />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={item.title}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="flex flex-col-reverse items-center gap-6 p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-10 lg:gap-12"
+        >
+          <div className="flex flex-1 flex-col items-center gap-3 text-center sm:items-start sm:text-left">
+            {item.animeType && (
+              <Badge variant="secondary" className="w-fit capitalize">
+                {item.animeType}
+              </Badge>
+            )}
+            <h2 className="font-heading text-2xl leading-tight font-bold text-balance sm:text-3xl lg:text-4xl">
+              {item.title}
+            </h2>
+            {href && (
+              <Link href={href} className="mt-1">
+                <Button size="lg">
+                  {isDirectEpisode ? <PlayIcon /> : null}
+                  {isDirectEpisode ? 'Ver episodio' : 'Ver detalles'}
+                </Button>
+              </Link>
+            )}
           </div>
-        </>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-      <div className="absolute bottom-0 left-0 flex max-w-lg flex-col gap-2 p-4 sm:p-6">
-        {item.animeType && (
-          <Badge variant="secondary" className="w-fit capitalize">
-            {item.animeType}
-          </Badge>
-        )}
-        <h2 className="line-clamp-2 text-xl font-bold text-white sm:text-2xl">{item.title}</h2>
-        {href && (
-          <Link href={href}>
-            <Button size="sm" variant="secondary">
-              {isDirectEpisode ? 'Ver episodio' : 'Ver detalles'}
-            </Button>
-          </Link>
-        )}
-      </div>
+
+          {item.thumbnailUrl && (
+            <div className="relative w-40 shrink-0 sm:w-52 lg:w-60">
+              {/* Resplandor ambiental: copia borrosa de la MISMA card, detrás
+                  y del mismo tamaño — al estar contenida a la propia card
+                  (no estirada a todo el banner) no genera ningún borde/costura
+                  visible, solo un halo de color a su alrededor. */}
+              <div className="absolute inset-0 scale-105 opacity-70 blur-2xl" aria-hidden>
+                <Image
+                  src={item.thumbnailUrl}
+                  alt=""
+                  fill
+                  className="rounded-xl object-cover"
+                  unoptimized
+                />
+              </div>
+              <div className="ring-border/40 relative aspect-2/3 overflow-hidden rounded-xl shadow-2xl ring-1">
+                <Image
+                  src={item.thumbnailUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
       {results.length > 1 && (
         <>
           {/* Flechas: solo desktop (`hidden sm:flex`) — en mobile se navega
@@ -146,7 +158,7 @@ export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBanner
             type="button"
             aria-label="Anterior"
             onClick={() => goTo(current - 1)}
-            className="absolute top-1/2 left-3 hidden size-11 -translate-y-1/2 -translate-x-2 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-300 ease-out group-hover/banner:translate-x-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:scale-105 focus-visible:translate-x-0 focus-visible:opacity-100 sm:flex"
+            className="absolute top-1/2 left-3 hidden size-11 -translate-x-2 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-300 ease-out group-hover/banner:translate-x-0 group-hover/banner:opacity-100 hover:scale-105 hover:bg-black/50 focus-visible:translate-x-0 focus-visible:opacity-100 sm:flex"
           >
             <ChevronLeftIcon className="size-5" />
           </button>
@@ -154,19 +166,22 @@ export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBanner
             type="button"
             aria-label="Siguiente"
             onClick={() => goTo(current + 1)}
-            className="absolute top-1/2 right-3 hidden size-11 -translate-y-1/2 translate-x-2 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-300 ease-out group-hover/banner:translate-x-0 group-hover/banner:opacity-100 hover:bg-black/50 hover:scale-105 focus-visible:translate-x-0 focus-visible:opacity-100 sm:flex"
+            className="absolute top-1/2 right-3 hidden size-11 translate-x-2 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white opacity-0 shadow-lg backdrop-blur-md transition-all duration-300 ease-out group-hover/banner:translate-x-0 group-hover/banner:opacity-100 hover:scale-105 hover:bg-black/50 focus-visible:translate-x-0 focus-visible:opacity-100 sm:flex"
           >
             <ChevronRightIcon className="size-5" />
           </button>
-          <div className="absolute right-4 bottom-4 flex gap-1">
-            {results.map((_, i) => (
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-1.5 sm:right-6 sm:left-auto sm:translate-x-0">
+            {results.map((result, i) => (
               <button
-                key={i}
+                key={result.sources[0] ? `${result.sources[0].providerId}:${result.sources[0].externalId}` : result.title}
+                type="button"
                 aria-label={`Ir al slide ${i + 1}`}
+                aria-current={i === current}
                 onClick={() => goTo(i)}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  i === current ? 'bg-white' : 'bg-white/40'
-                }`}
+                className={cn(
+                  'h-1.5 rounded-full transition-all',
+                  i === current ? 'bg-primary w-6' : 'bg-foreground/20 w-1.5',
+                )}
               />
             ))}
           </div>

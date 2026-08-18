@@ -142,6 +142,8 @@ export interface DiscoveryResult {
   sources: SourceReference[];
   completenessScore: number;
   qualityScore: number;
+  /** Solo `/latest` lo trae poblado ("hoy"/"ayer", nunca `null` ahí) — `null` en el resto de endpoints de Discovery. */
+  firstSeenLabel: 'hoy' | 'ayer' | null;
 }
 
 export interface Page<T> {

@@ -244,6 +244,7 @@ function mapDiscoveryResult(raw: RawDiscoveryResult): DiscoveryResult {
     })),
     completenessScore: raw.completeness_score,
     qualityScore: raw.quality_score,
+    firstSeenLabel: raw.first_seen_label ?? null,
   };
 }
 
@@ -345,6 +346,8 @@ interface RawDiscoveryResult {
   sources?: RawSourceReference[];
   completeness_score: number;
   quality_score: number;
+  /** Solo `/latest` lo trae poblado ("hoy"/"ayer", nunca `null` ahí) — el resto de endpoints de Discovery no lo mandan. */
+  first_seen_label?: 'hoy' | 'ayer' | null;
 }
 interface RawPage<T> {
   items: T[];
@@ -499,16 +502,17 @@ export async function fetchPopular(params: DiscoveryQueryParams = {}): Promise<D
 }
 
 /**
- * `sources[].episodeNumber` viene poblado acá — son episodios recién
- * publicados, no series nuevas (ver `fetchNewAnimes`).
+ * `sources[].episodeNumber` y `firstSeenLabel` ("hoy"/"ayer") vienen siempre
+ * poblados acá — son episodios recién publicados, no series nuevas (ver
+ * `fetchNewAnimes`).
  *
- * Gap confirmado en vivo (2026-08-18): el provider `verani` tiene `priority`
- * más alta que el resto pero su adapter de `/latest` no trae `episodeNumber`
- * (siempre `null`) ni thumbnail — el backend los ordena primero igual,
- * tapando los episodios reales de otros providers (`tioanime`, que sí trae
- * `episodeNumber`). Mientras el backend ajusta esa prioridad, se reordena acá:
- * los resultados CON episodio real primero — es literalmente el propósito de
- * este endpoint, uno sin episodio no debería tapar a uno que sí lo tiene.
+ * El backend filtra de raíz desde 2026-08-18: ya no rellena con ruido hasta
+ * `pageSize` ni duplica — puede devolver menos de lo pedido a propósito (solo
+ * lo que realmente sea de hoy/ayer). No hay que rellenar la fila ni asumir
+ * que faltan por cargar si vienen pocos. El sort manual que había acá antes
+ * (priorizar resultados con `episodeNumber` real, por el provider `verani`
+ * devolviendo entradas sin episodio) ya no hace falta — el backend garantiza
+ * que toda entrada trae episodio real.
  */
 export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<DiscoveryResult[]> {
   const raw = await apiFetch<RawDiscoveryResult[]>(
@@ -520,9 +524,7 @@ export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<Di
     REQUEST_TIMEOUT_MS,
     DISCOVERY_REVALIDATE_SECONDS,
   );
-  return raw
-    .map(mapDiscoveryResult)
-    .sort((a, b) => Number(b.sources[0]?.episodeNumber != null) - Number(a.sources[0]?.episodeNumber != null));
+  return raw.map(mapDiscoveryResult);
 }
 
 /**

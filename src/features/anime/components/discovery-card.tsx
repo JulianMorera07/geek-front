@@ -36,10 +36,20 @@ function DiscoveryCard({ result, className }: Readonly<DiscoveryCardProps>) {
         alt={result.title}
         label={result.thumbnailUrl ? undefined : result.title}
         overlay={
-          <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-            <StarIcon className="fill-warning text-warning size-3" />
-            {(result.qualityScore * 10).toFixed(1)}
-          </div>
+          <>
+            {result.firstSeenLabel && (
+              <Badge
+                variant="default"
+                className="absolute top-2 left-2 capitalize"
+              >
+                {result.firstSeenLabel}
+              </Badge>
+            )}
+            <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+              <StarIcon className="fill-warning text-warning size-3" />
+              {(result.qualityScore * 10).toFixed(1)}
+            </div>
+          </>
         }
       />
       <div className="flex flex-col gap-0.5">
