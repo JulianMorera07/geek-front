@@ -95,14 +95,28 @@ export function DiscoveryBanner({ results, className }: Readonly<DiscoveryBanner
             className="scale-110 object-cover opacity-40 blur-2xl"
             unoptimized
           />
-          {/* Primer plano: la imagen completa, sin recortar (`object-contain`) — se ve entera sin importar si es un póster vertical o un banner ancho. */}
-          <Image
-            src={item.thumbnailUrl}
-            alt={item.title}
-            fill
-            className="object-contain"
-            unoptimized
-          />
+          {/* Primer plano: la imagen completa, sin recortar (`object-contain`)
+              — se ve entera sin importar si es un póster vertical o un banner
+              ancho. El `mask-image` difumina sus bordes izquierdo/derecho
+              para que se funda con el fondo borroso en vez de quedar como un
+              recuadro nítido flotando encima (se veía "en caja" — reportado
+              en vivo). */}
+          <div
+            className="absolute inset-0"
+            style={{
+              maskImage: 'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
+              WebkitMaskImage:
+                'linear-gradient(to right, transparent, black 18%, black 82%, transparent)',
+            }}
+          >
+            <Image
+              src={item.thumbnailUrl}
+              alt={item.title}
+              fill
+              className="object-contain"
+              unoptimized
+            />
+          </div>
         </>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
