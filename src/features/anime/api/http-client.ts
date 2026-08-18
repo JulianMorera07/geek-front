@@ -498,7 +498,18 @@ export async function fetchPopular(params: DiscoveryQueryParams = {}): Promise<D
   return raw.map(mapDiscoveryResult);
 }
 
-/** `sources[].episodeNumber` viene poblado acá — son episodios recién publicados, no series nuevas (ver `fetchNewAnimes`). */
+/**
+ * `sources[].episodeNumber` viene poblado acá — son episodios recién
+ * publicados, no series nuevas (ver `fetchNewAnimes`).
+ *
+ * Gap confirmado en vivo (2026-08-18): el provider `verani` tiene `priority`
+ * más alta que el resto pero su adapter de `/latest` no trae `episodeNumber`
+ * (siempre `null`) ni thumbnail — el backend los ordena primero igual,
+ * tapando los episodios reales de otros providers (`tioanime`, que sí trae
+ * `episodeNumber`). Mientras el backend ajusta esa prioridad, se reordena acá:
+ * los resultados CON episodio real primero — es literalmente el propósito de
+ * este endpoint, uno sin episodio no debería tapar a uno que sí lo tiene.
+ */
 export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<DiscoveryResult[]> {
   const raw = await apiFetch<RawDiscoveryResult[]>(
     '/latest',
@@ -509,7 +520,9 @@ export async function fetchLatest(params: DiscoveryQueryParams = {}): Promise<Di
     REQUEST_TIMEOUT_MS,
     DISCOVERY_REVALIDATE_SECONDS,
   );
-  return raw.map(mapDiscoveryResult);
+  return raw
+    .map(mapDiscoveryResult)
+    .sort((a, b) => Number(b.sources[0]?.episodeNumber != null) - Number(a.sources[0]?.episodeNumber != null));
 }
 
 /**
