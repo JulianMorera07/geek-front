@@ -35,7 +35,7 @@ export default async function HomePage() {
         console.error('[HomePage] fetchPopular falló:', error);
         return [];
       }),
-      fetchLatest({ pageSize: 12 }).catch((error): DiscoveryResult[] => {
+      fetchLatest({ pageSize: 50 }).catch((error): DiscoveryResult[] => {
         console.error('[HomePage] fetchLatest falló:', error);
         return [];
       }),

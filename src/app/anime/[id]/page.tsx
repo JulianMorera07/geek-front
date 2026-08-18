@@ -12,6 +12,7 @@ import { RelatedAnimeRow } from '@/features/anime/components/related-anime-row';
 import { fetchAnimeById, fetchGenres } from '@/features/anime/api/http-client';
 import { statusLabel, statusVariant } from '@/features/anime/status';
 import { FavoriteButton } from '@/features/favorites/components/favorite-button';
+import { ReingestAnimeButton } from '@/features/anime/components/reingest-anime-button';
 import { isNotFoundError } from '@/lib/api-error';
 
 export default async function AnimeDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -69,7 +70,10 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ id
             </Text>
           ) : null}
 
-          <FavoriteButton animeId={anime.id} variant="full" className="w-fit" />
+          <div className="flex flex-wrap items-center gap-2">
+            <FavoriteButton animeId={anime.id} variant="full" className="w-fit" />
+            <ReingestAnimeButton animeId={anime.id} />
+          </div>
         </div>
       </div>
 

@@ -49,11 +49,22 @@ function HomeContinueWatchingBanner() {
     (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
   )[0];
 
+  // Gap visto en vivo (2026-08-18): el backend a veces manda la entrada sin
+  // `anime_title`/`season_number`/`episode_number` — el registro de sesión
+  // quedó incompleto de ese lado. Sin esta validación se mostraba "tu anime"
+  // y "T· Ep." en blanco, sin imagen, en vez de caer al respaldo local (que
+  // sí tiene todo completo).
+  const mostRecentRemoteIsComplete =
+    mostRecentRemote !== undefined &&
+    Boolean(mostRecentRemote.animeTitle) &&
+    Number.isFinite(mostRecentRemote.seasonNumber) &&
+    Number.isFinite(mostRecentRemote.episodeNumber);
+
   const remoteEntry: DisplayEntry | null =
-    isAuthenticated && mostRecentRemote
+    isAuthenticated && mostRecentRemoteIsComplete
       ? {
           href: `/anime/${mostRecentRemote.animeId}/watch/${mostRecentRemote.episodeId}`,
-          animeTitle: mostRecentRemote.animeTitle ?? 'tu anime',
+          animeTitle: mostRecentRemote.animeTitle as string,
           thumbnailUrl: mostRecentRemote.thumbnailUrl,
           seasonNumber: mostRecentRemote.seasonNumber,
           episodeNumber: mostRecentRemote.episodeNumber,

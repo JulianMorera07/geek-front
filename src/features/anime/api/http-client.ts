@@ -1,6 +1,5 @@
 import { ApiError } from '@/lib/api-error';
-import { resolveMediaUrl } from '@/lib/http';
-import { resolveApiBaseUrl } from '@/lib/http';
+import { httpRequest, resolveApiBaseUrl, resolveMediaUrl } from '@/lib/http';
 import type {
   AnimeDetail,
   AnimeSummary,
@@ -381,6 +380,27 @@ export async function fetchCatalog(params: CatalogQueryParams = {}): Promise<Pag
 /** GET /anime/:id — 404 real (`ApiError`) si no existe. */
 export async function fetchAnimeById(animeId: string): Promise<AnimeDetail> {
   const raw = await apiFetch<RawAnimeDetail>(`/anime/${encodeURIComponent(animeId)}`);
+  return mapAnimeDetail(raw);
+}
+
+/**
+ * POST /anime/:id/reingest/all — SOLO ADMIN (`admin:manage`). Sin body: el
+ * backend prueba los 3 providers registrados automáticamente (mismo
+ * ranking que `/search` — temporadas reales primero, prioridad después — y
+ * si el mejor candidato falla al traer el detalle, cae solo al siguiente) y
+ * reemplaza las temporadas del anime con el que sí respondió. Devuelve el
+ * `AnimeDetail` actualizado. 403 sin el permiso, 404 si el anime no existe o
+ * ningún provider reporta un título similar.
+ *
+ * Existe también `POST /anime/:id/reingest` (con `provider_id`/`external_id`
+ * en el body, para forzar un provider puntual) — no se expone en el front,
+ * solo este automático hace falta acá.
+ */
+export async function reingestAnimeAll(animeId: string, accessToken: string): Promise<AnimeDetail> {
+  const raw = await httpRequest<RawAnimeDetail>(
+    `${API_BASE_URL}/anime/${encodeURIComponent(animeId)}/reingest/all`,
+    { method: 'POST', accessToken },
+  );
   return mapAnimeDetail(raw);
 }
 

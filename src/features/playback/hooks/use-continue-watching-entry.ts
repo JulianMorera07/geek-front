@@ -41,8 +41,17 @@ export function useContinueWatchingEntry(animeId: string): ContinueWatchingDispl
   }, [animeId]);
 
   const remoteMatch = remoteQuery.data?.find((e) => e.animeId === animeId);
+  // Gap visto en vivo (2026-08-18): el backend a veces manda la entrada de
+  // `/playback/continue-watching` sin `season_number`/`episode_number` (el
+  // registro de sesión quedó incompleto de ese lado) — sin esta validación se
+  // veía "T· Ep." en blanco en vez de caer al respaldo local, que sí tiene
+  // los números completos.
+  const remoteMatchIsComplete =
+    remoteMatch !== undefined &&
+    Number.isFinite(remoteMatch.seasonNumber) &&
+    Number.isFinite(remoteMatch.episodeNumber);
   const remoteEntry: ContinueWatchingDisplayEntry | null =
-    isAuthenticated && remoteMatch
+    isAuthenticated && remoteMatchIsComplete
       ? {
           href: `/anime/${animeId}/watch/${remoteMatch.episodeId}`,
           seasonNumber: remoteMatch.seasonNumber,

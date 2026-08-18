@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchAnimeById,
@@ -13,9 +13,11 @@ import {
   fetchLatest,
   fetchPopular,
   fetchSearch,
+  reingestAnimeAll,
 } from '@/features/anime/api/http-client';
 import type { CatalogQueryParams, DirectoryQueryParams, DiscoveryResult } from '@/features/anime/api/types';
 import { pageHasNewResults } from '@/features/anime/discovery-dedupe';
+import { authSessionManager } from '@/features/auth/session-manager';
 
 /** Query keys centralizadas del dominio anime. */
 export const animeKeys = {
@@ -59,6 +61,27 @@ export function useAnimeDetailQuery(animeId: string) {
     queryKey: animeKeys.detail(animeId),
     queryFn: () => fetchAnimeById(animeId),
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Botón "Reparar" — SOLO ADMIN (`admin:manage`, ver `PermissionGuard` donde
+ * se usa). `callAuthenticated` reintenta una vez con refresh de token si el
+ * access token venció — no hace falta manejarlo acá. Al resolver, escribe
+ * directo el detalle actualizado en cache (en vez de solo invalidar) para que
+ * la ficha refleje las temporadas nuevas sin esperar un refetch, e invalida
+ * los episodios sueltos (`EpisodeList`, el fallback sin temporadas) por si el
+ * anime pasó de una sola temporada plana a varias reales.
+ */
+export function useReingestAnimeAllMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (animeId: string) =>
+      authSessionManager.callAuthenticated((token) => reingestAnimeAll(animeId, token)),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(animeKeys.detail(updated.id), updated);
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(updated.id) });
+    },
   });
 }
 
