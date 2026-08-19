@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'GeekBaku',
     short_name: 'GeekBaku',
-    description: 'Catálogo de anime conectado a la API real de GeekBaku.',
+    description: 'Catálogo de anime conectado.',
     start_url: '/',
     display: 'standalone',
     background_color: '#0a0a0a',

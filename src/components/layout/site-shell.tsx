@@ -107,7 +107,7 @@ function SiteShell({ children }: { children: React.ReactNode }) {
               GeekBaku
             </span>
           }
-          description="Catálogo de anime conectado a la API real de GeekBaku."
+          description="Catálogo de anime conectado."
           columns={[
             {
               title: 'Explorar',
