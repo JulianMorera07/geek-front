@@ -276,7 +276,7 @@ jobs:
                 // El .env viaja en base64 para preservar caracteres especiales
                 // El orquestador lo decodifica y lo escribe en el servidor con permisos 600
                 env_file_b64: envFileBase64,
-                ghcr_token: '${{ secrets.GH_TOKEN }}',
+                ghcr_token: '${{ secrets.GITHUB_TOKEN }}',
                 ghcr_user:  '${{ github.repository_owner }}'.toLowerCase(),
               },
             });
