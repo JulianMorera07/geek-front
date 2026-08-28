@@ -60,6 +60,18 @@ jobs:
       - name: Restaurar la keystore de firma
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android.keystore
 
+      # Sin esto, `bubblewrap build` no sabe dónde está el JDK/SDK que ya
+      # instalaron los dos pasos de arriba y pregunta interactivo "¿Querés
+      # que instale el JDK yo?" — cuelga el job en CI (no hay a quién
+      # responder), visto en vivo (exit code 130). `updateConfig` deja esas
+      # rutas guardadas en la config propia de Bubblewrap, una sola vez por
+      # runner, antes de compilar.
+      - name: Apuntar Bubblewrap al JDK/SDK ya instalados
+        run: |
+          npx --yes @bubblewrap/cli updateConfig \
+            --jdkPath "$JAVA_HOME" \
+            --androidSdkPath "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+
       - name: Incrementar appVersionCode
         if: ${{ inputs.versionBump != false }}
         run: |
