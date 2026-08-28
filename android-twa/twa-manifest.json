@@ -1,0 +1,49 @@
+{
+  "packageId": "monster.valhalla.geekbaku.twa",
+  "host": "geekbaku.valhalla.monster",
+  "name": "GeekBaku",
+  "launcherName": "GeekBaku",
+  "display": "standalone",
+  "themeColor": "#7C3AED",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#0A0A0A",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://geekbaku.valhalla.monster/icons/icon-512.png",
+  "maskableIconUrl": "https://geekbaku.valhalla.monster/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://geekbaku.valhalla.monster/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://geekbaku.valhalla.monster/",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [
+    "12:E6:5C:43:26:EB:61:74:14:DD:99:F1:92:AD:EF:75:7E:76:E6:7A:2F:07:38:19:BF:2D:05:B2:5D:DB:03:A8"
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1"
+}
