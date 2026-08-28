@@ -75,17 +75,23 @@ jobs:
           mkdir -p "$HOME/.bubblewrap"
           printf '{"jdkPath": "%s", "androidSdkPath": "%s"}' "$JAVA_HOME" "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > "$HOME/.bubblewrap/config.json"
 
-      - name: Incrementar appVersionCode
-        if: ${{ inputs.versionBump != false }}
+      # `bubblewrap build` compara un checksum del `twa-manifest.json` contra
+      # `manifest-checksum.txt` — si no coinciden (ej. porque tocamos el
+      # manifest, o hasta por diferencias de formato al commitear), pregunta
+      # interactivo "¿Aplico los cambios antes de compilar?" y cuelga el job
+      # (visto en vivo, exit code 130 — mismo problema que el JDK). `update`
+      # regenera el proyecto Android Y el checksum ANTES de compilar, así
+      # llegan siempre sincronizados y `build` nunca entra a esa rama. Como
+      # `appVersionName` ya quedó igual a `appVersionCode` en el manifest
+      # commiteado, el bump de versión de `update` es automático, sin pedir
+      # nada por stdin tampoco (ver `updateVersions` en el CLI).
+      - name: Actualizar el proyecto Android (bubblewrap update)
         run: |
-          node -e "
-            const fs = require('fs');
-            const manifest = JSON.parse(fs.readFileSync('twa-manifest.json', 'utf8'));
-            manifest.appVersionCode += 1;
-            manifest.appVersion = String(manifest.appVersionCode);
-            manifest.appVersionName = String(manifest.appVersionCode);
-            fs.writeFileSync('twa-manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-          "
+          if [ "${{ inputs.versionBump }}" = "false" ]; then
+            npx --yes @bubblewrap/cli update --skipVersionUpgrade
+          else
+            npx --yes @bubblewrap/cli update
+          fi
 
       - name: Compilar el APK firmado (Bubblewrap)
         env:
@@ -110,11 +116,16 @@ jobs:
             https://github.com/${{ github.repository }}/releases/download/android-latest/app-release-signed.apk
           files: android-twa/app-release-signed.apk
 
-      - name: Commitear el nuevo appVersionCode
-        if: ${{ inputs.versionBump != false }}
+      # Siempre corre (no solo con versionBump): `update` reescribe
+      # `manifest-checksum.txt` en cada corrida — hay que commitearlo también
+      # aunque no haya bump de versión, si no la próxima corrida detecta
+      # "manifest cambiado" otra vez por las puras (inofensivo ahora que
+      # `update` corre siempre antes de `build`, pero mejor mantenerlo
+      # sincronizado igual).
+      - name: Commitear la nueva versión y el checksum
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add twa-manifest.json
-          git diff --cached --quiet && echo "sin cambios de versión" || git commit -m "chore: bump versionCode del TWA de Android [skip ci]"
+          git add twa-manifest.json manifest-checksum.txt
+          git diff --cached --quiet && echo "sin cambios" || git commit -m "chore: actualizar proyecto Android (TWA) [skip ci]"
           git push
