@@ -5,16 +5,28 @@ import { DownloadIcon, XIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/base/typography';
-import { useInstallPrompt } from '@/hooks/use-install-prompt';
+import { useInstallPrompt, type InstallAvailability } from '@/hooks/use-install-prompt';
 
 const DISMISS_KEY = 'geekbaku:install-banner-dismissed';
+
+function instructionsFor(availability: InstallAvailability): string {
+  switch (availability) {
+    case 'ios':
+      return 'Toca el botón de compartir de Safari y luego "Agregar a inicio".';
+    case 'tv':
+      return 'Abre el menú del navegador (⋮) y elige "Instalar aplicación" o "Agregar a pantalla de inicio".';
+    default:
+      return 'Instálala en tu pantalla de inicio para acceder más rápido.';
+  }
+}
 
 /**
  * Banner de "Descarga la aplicación" en la Home. En Android/Chrome/Edge, el
  * botón dispara el diálogo nativo de instalación (`beforeinstallprompt`); en
- * iOS, que no permite disparar la instalación por código, muestra
- * instrucciones manuales. Se oculta solo si ya está instalada o el
- * navegador no soporta ninguna de las dos vías.
+ * iOS y en Google TV/Android TV, que no disparan ese evento (Apple no lo
+ * soporta; el Chrome de TV sí pero no cumple sus propios criterios de
+ * "engagement" ahí), muestra instrucciones manuales propias de cada uno. Se
+ * oculta solo si ya está instalada o el navegador no soporta ninguna vía.
  */
 function InstallAppBanner() {
   const { availability, promptInstall } = useInstallPrompt();
@@ -41,11 +53,7 @@ function InstallAppBanner() {
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <Text className="font-medium">Descarga la aplicación</Text>
-        <Text variant="muted">
-          {availability === 'ios'
-            ? 'Toca el botón de compartir de Safari y luego "Agregar a inicio".'
-            : 'Instálala en tu pantalla de inicio para acceder más rápido.'}
-        </Text>
+        <Text variant="muted">{instructionsFor(availability)}</Text>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {availability === 'installable' ? (

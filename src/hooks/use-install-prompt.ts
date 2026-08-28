@@ -8,14 +8,18 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export type InstallAvailability = 'checking' | 'installable' | 'ios' | 'unavailable';
+export type InstallAvailability = 'checking' | 'installable' | 'ios' | 'tv' | 'unavailable';
 
 /**
  * Detecta si se puede ofrecer instalar la PWA y expone `promptInstall()`
  * para disparar el diálogo nativo del navegador (solo Chromium/Android —
  * `beforeinstallprompt` no existe en Safari/iOS, ahí no hay forma
  * programática de instalar, Apple solo permite el flujo manual de
- * "Compartir → Agregar a inicio").
+ * "Compartir → Agregar a inicio"). Google TV/Android TV corre Chrome pero
+ * NO dispara `beforeinstallprompt` (confirmado en vivo — el navegador de TV
+ * no cumple los criterios de "engagement" de Chrome para ofrecerlo solo,
+ * aunque el manifest/service worker sean válidos) — ahí también hace falta
+ * un flujo manual, vía el menú del propio navegador.
  */
 export function useInstallPrompt() {
   const deferredPromptRef = React.useRef<BeforeInstallPromptEvent | null>(null);
@@ -30,7 +34,12 @@ export function useInstallPrompt() {
       return;
     }
 
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const userAgent = window.navigator.userAgent;
+    const isIos = /iphone|ipad|ipod/i.test(userAgent);
+    // Android TV/Google TV/Fire TV — todos corren Chrome/WebView con "TV" o
+    // el nombre del dispositivo en el user agent. `AFT*` es el prefijo de
+    // los modelos Fire TV Stick.
+    const isTv = /android tv|googletv|google tv|smarttv|smart-tv|\baft[a-z0-9]*\b/i.test(userAgent);
 
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
@@ -46,10 +55,13 @@ export function useInstallPrompt() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // Chrome dispara `beforeinstallprompt` async (o nunca, si ya se
-    // descartó antes) — sin ese evento, en iOS igual se pueden mostrar
-    // instrucciones manuales; en cualquier otro caso, no hay nada que ofrecer.
+    // descartó antes, o si el navegador no lo soporta de entrada como en TV)
+    // — sin ese evento, en iOS/TV igual se pueden mostrar instrucciones
+    // manuales; en cualquier otro caso, no hay nada que ofrecer.
     const fallbackTimer = setTimeout(() => {
-      setAvailability((current) => (current === 'checking' ? (isIos ? 'ios' : 'unavailable') : current));
+      setAvailability((current) =>
+        current === 'checking' ? (isIos ? 'ios' : isTv ? 'tv' : 'unavailable') : current,
+      );
     }, 1500);
 
     return () => {
