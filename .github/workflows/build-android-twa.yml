@@ -1,0 +1,105 @@
+name: Build Android TWA APK
+
+# La app Android es un TWA (Trusted Web Activity): un cascarón nativo mínimo
+# que abre geekbaku.valhalla.monster dentro de una vista de Chrome sin barra
+# de direcciones. TODO el contenido del sitio (lo que cambia con cada deploy
+# normal — anime nuevo, fix de bug, lo que sea) se actualiza SOLO, en vivo,
+# sin tocar este workflow ni volver a instalar nada en la TV: es la página
+# real, no una copia empaquetada.
+#
+# Este build solo hace falta cuando cambia el CASCARÓN en sí: ícono, nombre,
+# colores de splash/tema, o el manifest.webmanifest (de donde sale
+# `twa-manifest.json`). Por eso el trigger es manual (`workflow_dispatch`) o
+# automático solo si se toca `twa-manifest.json` — no en cada push normal del
+# sitio, que no necesita esto para nada.
+on:
+  workflow_dispatch:
+    inputs:
+      versionBump:
+        description: 'Incrementar appVersionCode (recomendado salvo que sea un rebuild de prueba)'
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    paths:
+      - 'android-twa/twa-manifest.json'
+      - '.github/workflows/build-android-twa.yml'
+
+permissions:
+  contents: write
+
+# Vive en android-twa/, NO en la raíz — un `app/` de Bubblewrap en la raíz
+# del repo choca con la carpeta `app/` que usa el App Router de Next.js
+# (aunque el código real esté en src/app/, Next se confunde igual) y rompe
+# el build del sitio. Confirmado en vivo — de ahí la carpeta separada.
+defaults:
+  run:
+    working-directory: android-twa
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # La keystore NUNCA vive en el repo (ver .gitignore) — se restaura acá
+      # desde un secret en base64. Sin esta misma keystore en cada build, el
+      # APK saldría firmado con una identidad distinta cada vez, rompiendo
+      # cualquier actualización futura y el assetlinks.json ya publicado.
+      - name: Restaurar la keystore de firma
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android.keystore
+
+      - name: Incrementar appVersionCode
+        if: ${{ inputs.versionBump != false }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('twa-manifest.json', 'utf8'));
+            manifest.appVersionCode += 1;
+            manifest.appVersion = String(manifest.appVersionCode);
+            manifest.appVersionName = String(manifest.appVersionCode);
+            fs.writeFileSync('twa-manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+
+      - name: Compilar el APK firmado (Bubblewrap)
+        env:
+          # Sin esto, `bubblewrap build` queda esperando el password por
+          # stdin interactivo — imposible en CI. Ver `build.js` del CLI:
+          # busca exactamente estos dos nombres de variable.
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: npx --yes @bubblewrap/cli build --skipPwaValidation
+
+      # URL fija y estable: la misma siempre, sin importar cuántas veces se
+      # recompile — es lo que se pega en Downloader en la TV. Cada corrida
+      # reemplaza el asset de este release en vez de crear uno nuevo.
+      - name: Publicar el APK en un release fijo
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: 'GeekBaku Android (TWA)'
+          body: |
+            APK generado automáticamente por CI — no es una release de código, es el cascarón Android.
+            URL fija para pegar en Downloader (Google TV / Android TV):
+            https://github.com/${{ github.repository }}/releases/download/android-latest/app-release-signed.apk
+          files: android-twa/app-release-signed.apk
+
+      - name: Commitear el nuevo appVersionCode
+        if: ${{ inputs.versionBump != false }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add twa-manifest.json
+          git diff --cached --quiet && echo "sin cambios de versión" || git commit -m "chore: bump versionCode del TWA de Android [skip ci]"
+          git push

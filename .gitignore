@@ -41,3 +41,16 @@ yarn-error.log*
 next-env.d.ts
 
 .claude/
+
+# Android TWA (Bubblewrap), vive en android-twa/ (aparte de src/app/ del
+# App Router de Next — un `app/` en la raíz choca con la convención de Next y
+# rompe el build, confirmado en vivo). El proyecto fuente
+# (twa-manifest.json, app/, build.gradle, gradlew, etc.) SÍ se commitea, lo
+# necesita el workflow de CI para compilar. Lo que NUNCA debe ir al repo:
+android-twa/android.keystore
+android-twa/android.keystore.b64
+*.apk
+*.aab
+android-twa/app/build/
+android-twa/.gradle/
+android-twa/hs_err_pid*.log
