@@ -21,7 +21,7 @@ export function resolveApiBaseUrl(): string {
  * Algunas respuestas del backend traen URLs absolutas de medios propios
  * (thumbnails/avatares subidos al backend, no de un provider externo como
  * Jikan) apuntando al hostname interno de Docker/Podman (ej.
- * `http://geek-back:8000/media/x.jpg`) — el navegador nunca puede resolver
+ * `http://geek-back:8001/media/x.jpg`) — el navegador nunca puede resolver
  * ese host. Los providers externos documentados siempre son `https`, así que
  * cualquier URL `http://` se asume interna y se reescribe para pasar por el
  * proxy same-origin `/api/media-proxy`, que sí vive en la network interna.

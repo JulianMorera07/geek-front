@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * `.next/routes-manifest.json` (confirmado inspeccionando el manifest en el
  * contenedor) — cambiar `BACKEND_INTERNAL_HOST` con `docker run -e` en
  * runtime no tenía ningún efecto, seguía pegándole al host de build (o al
- * default `geek-back:8000`, inexistente si la red real usa otro nombre de
+ * default `geek-back:8001`, inexistente si la red real usa otro nombre de
  * servicio), y todas las requests del navegador (que siempre van a la ruta
  * relativa `/api/v1`, ver `resolveApiBaseUrl` en `src/lib/http.ts`) fallaban
  * con `ENOTFOUND`/timeout aunque el backend respondiera bien.
@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
 const METHODS_WITH_BODY = new Set(['POST', 'PUT', 'PATCH']);
 
 async function proxy(request: NextRequest, path: string[]): Promise<NextResponse> {
-  const backendHost = process.env.BACKEND_INTERNAL_HOST ?? 'geek-back:8000';
+  const backendHost = process.env.BACKEND_INTERNAL_HOST ?? 'geek-back:8001';
   const upstreamUrl = `http://${backendHost}/api/v1/${path.map(encodeURIComponent).join('/')}${request.nextUrl.search}`;
 
   const headers = new Headers();

@@ -43,7 +43,7 @@ En desarrollo verás un botón flotante de **React Query Devtools** (esquina inf
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `BACKEND_INTERNAL_HOST` | `geek-back:8000` | Host:puerto del backend en la network interna de Docker/Podman. Runtime env (leída en cada request, no requiere rebuild). Ajustar al nombre real del servicio si el compose no usa `geek-back`. |
+| `BACKEND_INTERNAL_HOST` | `geek-back:8001` | Host:puerto del backend en la network interna de Docker/Podman. Runtime env (leída en cada request, no requiere rebuild). Ajustar al nombre real del servicio si el compose no usa `geek-back`. |
 
 **Un solo camino para todo el tráfico al backend**: tanto el navegador como el servidor (RSC) piden
 siempre la ruta relativa `/api/v1` (`resolveApiBaseUrl()` en `src/lib/http.ts`). Esa ruta cae en el
@@ -119,7 +119,7 @@ docker build -t geekbaku-frontend .
 Ejecutar el contenedor:
 
 ```bash
-docker run -p 3000:3000 -e BACKEND_INTERNAL_HOST=geek-back:8000 geekbaku-frontend
+docker run -p 3000:3000 -e BACKEND_INTERNAL_HOST=geek-back:8001 geekbaku-frontend
 ```
 
 La imagen usa el modo `standalone` de Next.js (build multi-stage, usuario no-root, sin dependencias
