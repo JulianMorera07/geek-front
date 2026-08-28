@@ -62,15 +62,18 @@ jobs:
 
       # Sin esto, `bubblewrap build` no sabe dónde está el JDK/SDK que ya
       # instalaron los dos pasos de arriba y pregunta interactivo "¿Querés
-      # que instale el JDK yo?" — cuelga el job en CI (no hay a quién
-      # responder), visto en vivo (exit code 130). `updateConfig` deja esas
-      # rutas guardadas en la config propia de Bubblewrap, una sola vez por
-      # runner, antes de compilar.
+      # que instale el JDK yo?" — cuelga el job en CI (exit code 130, visto en
+      # vivo dos veces). Ni siquiera `bubblewrap updateConfig --jdkPath ...`
+      # sirve: su propio código (`loadOrCreateConfig` en config.js) dispara
+      # el mismo prompt ANTES de aplicar los flags, en un runner limpio sin
+      # config previa — bug real del CLI, no un error nuestro de uso. La
+      # única forma confiable es escribirle el archivo de config directo,
+      # con el shape exacto que espera `Config.deserialize`
+      # (@bubblewrap/core/Config.js): `{jdkPath, androidSdkPath}`.
       - name: Apuntar Bubblewrap al JDK/SDK ya instalados
         run: |
-          npx --yes @bubblewrap/cli updateConfig \
-            --jdkPath "$JAVA_HOME" \
-            --androidSdkPath "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          mkdir -p "$HOME/.bubblewrap"
+          printf '{"jdkPath": "%s", "androidSdkPath": "%s"}' "$JAVA_HOME" "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > "$HOME/.bubblewrap/config.json"
 
       - name: Incrementar appVersionCode
         if: ${{ inputs.versionBump != false }}
