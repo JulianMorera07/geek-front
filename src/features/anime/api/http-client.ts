@@ -153,6 +153,7 @@ function mapStreamingSources(raw: RawStreamingSource[] | undefined): StreamingSo
   return (raw ?? []).map((s) => ({
     id: s.id,
     providerName: s.provider_name,
+    displayName: s.display_name,
     externalRef: s.external_ref,
     quality: s.quality,
     audioLanguage: s.audio_language,
@@ -264,6 +265,7 @@ interface RawExternalId {
 interface RawStreamingSource {
   id: string;
   provider_name: string;
+  display_name: string;
   external_ref: string;
   quality: string;
   audio_language: string;

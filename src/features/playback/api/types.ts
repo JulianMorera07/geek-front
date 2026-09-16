@@ -17,7 +17,10 @@ export interface Subtitle {
 
 export interface PlaybackSource {
   id: string;
+  /** Solo lógica interna (ej. mandarlo de vuelta en `POST /playback/sources/select`) — NUNCA pintarlo en pantalla, ver `providerDisplayName`. */
   providerId: string;
+  /** Nombre de marca del proveedor pensado para mostrar (ej. "Kitsune", "Ronin", "Sakura") — agrupa las pestañas del selector, a diferencia de `providerId`. */
+  providerDisplayName: string;
   serverName: string;
   url: string;
   /**

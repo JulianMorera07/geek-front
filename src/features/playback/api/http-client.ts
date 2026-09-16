@@ -29,6 +29,7 @@ interface RawSubtitle {
 interface RawPlaybackSource {
   id: string;
   provider_id: string;
+  provider_display_name: string;
   server_name: string;
   url: string;
   direct_url: string | null;
@@ -105,6 +106,7 @@ function mapSource(raw: RawPlaybackSource): PlaybackSource {
   return {
     id: raw.id,
     providerId: raw.provider_id,
+    providerDisplayName: raw.provider_display_name,
     serverName: raw.server_name,
     url: raw.url,
     directUrl: raw.direct_url,

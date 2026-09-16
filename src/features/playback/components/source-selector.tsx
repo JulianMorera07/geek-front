@@ -1,15 +1,10 @@
 'use client';
 
-import { ServerIcon } from 'lucide-react';
+import * as React from 'react';
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs';
 import { qualityLabel } from '@/features/playback/labels';
+import { cn } from '@/lib/utils';
 import type { PlaybackSource } from '@/features/playback/api/types';
 
 export interface SourceSelectorProps {
@@ -18,49 +13,112 @@ export interface SourceSelectorProps {
   onChange: (sourceId: string) => void;
 }
 
-/**
- * "Servidor N" por posición, NO `source.serverName` — ese campo viene del
- * backend con el nombre real del proveedor/embed (ej. "tioanime", "jkanime"),
- * y no queremos exponer marcas de terceros en la UI (decisión de producto).
- */
-function sourceLabel(source: PlaybackSource, index: number): string {
-  const audio = source.audio.languageCode ? ` · ${source.audio.languageCode.toUpperCase()}` : '';
-  return `Servidor ${index + 1} · ${qualityLabel(source.quality)}${audio}`;
+interface ProviderGroup {
+  displayName: string;
+  sources: PlaybackSource[];
+}
+
+/** Agrupa por `providerDisplayName` (ej. "Kitsune", "Ronin") preservando el orden en que aparece cada grupo — nunca por `providerId`, ese campo es solo lógica interna. */
+function groupByProvider(sources: PlaybackSource[]): ProviderGroup[] {
+  const groups: ProviderGroup[] = [];
+  const indexByName = new Map<string, number>();
+
+  for (const source of sources) {
+    const existingIndex = indexByName.get(source.providerDisplayName);
+    if (existingIndex === undefined) {
+      indexByName.set(source.providerDisplayName, groups.length);
+      groups.push({ displayName: source.providerDisplayName, sources: [source] });
+    } else {
+      groups[existingIndex].sources.push(source);
+    }
+  }
+
+  return groups;
+}
+
+/** `source.serverName` (ej. "Mega", "Streamtape") — nombre real del embed, sin problema mostrarlo. */
+function serverLabel(source: PlaybackSource): string {
+  return `${source.serverName} · ${qualityLabel(source.quality)}`;
 }
 
 /**
- * Selector de servidor/fuente — cada fuente ya trae su propia calidad y pista
- * de audio fijas. `Select.Value` de Base UI no infiere la etiqueta desde los
- * `Select.Item` (a diferencia de Radix) — sin `children` como función acá
- * muestra el `value` crudo (el UUID de la fuente), no el texto legible.
+ * Selector de fuente en dos niveles: pestañas por proveedor
+ * (`providerDisplayName`, un alias de marca que manda el backend — ej.
+ * "Kitsune", "Ronin", "Sakura") y, dentro de cada una, botones por servidor
+ * real (`serverName` — "Mega", "Streamtape"...). `providerId` nunca se pinta
+ * en pantalla, solo viaja de vuelta en `onChange` → `POST
+ * /playback/sources/select` vía `source.id`.
  */
-function SourceSelector({ sources, value, onChange }: SourceSelectorProps) {
-  if (sources.length === 0) return null;
+function SourceSelector({ sources, value, onChange }: Readonly<SourceSelectorProps>) {
+  const groups = React.useMemo(() => groupByProvider(sources), [sources]);
+
+  const groupOfValue = groups.find((g) => g.sources.some((s) => s.id === value))?.displayName;
+  const [manualTab, setManualTab] = React.useState<string | null>(null);
+  const activeTab = manualTab && groups.some((g) => g.displayName === manualTab)
+    ? manualTab
+    : (groupOfValue ?? groups[0]?.displayName ?? null);
+
+  if (groups.length === 0) return null;
+
+  // Un solo proveedor: las pestañas no aportan nada, se muestran los
+  // servidores directo.
+  if (groups.length === 1) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {groups[0].sources.map((source) => (
+          <button
+            key={source.id}
+            type="button"
+            disabled={!source.isActive}
+            onClick={() => onChange(source.id)}
+            className={cn(
+              'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+              source.id === value
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border hover:bg-accent',
+              !source.isActive && 'cursor-not-allowed opacity-50',
+            )}
+          >
+            {serverLabel(source)}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <Select
-      value={value ?? undefined}
-      onValueChange={(next) => {
-        if (next) onChange(next);
-      }}
-    >
-      <SelectTrigger className="w-full sm:w-48" aria-label="Servidor">
-        <ServerIcon className="text-muted-foreground" />
-        <SelectValue placeholder="Servidor">
-          {(selected: string | null) => {
-            const index = sources.findIndex((s) => s.id === selected);
-            return index >= 0 ? sourceLabel(sources[index], index) : 'Servidor';
-          }}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {sources.map((source, index) => (
-          <SelectItem key={source.id} value={source.id} disabled={!source.isActive}>
-            {sourceLabel(source, index)}
-          </SelectItem>
+    <Tabs value={activeTab} onValueChange={(next) => setManualTab(next as string)}>
+      <TabsList>
+        {groups.map((group) => (
+          <TabsTab key={group.displayName} value={group.displayName}>
+            {group.displayName}
+          </TabsTab>
         ))}
-      </SelectContent>
-    </Select>
+      </TabsList>
+      {groups.map((group) => (
+        <TabsPanel key={group.displayName} value={group.displayName}>
+          <div className="flex flex-wrap gap-2">
+            {group.sources.map((source) => (
+              <button
+                key={source.id}
+                type="button"
+                disabled={!source.isActive}
+                onClick={() => onChange(source.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                  source.id === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border hover:bg-accent',
+                  !source.isActive && 'cursor-not-allowed opacity-50',
+                )}
+              >
+                {serverLabel(source)}
+              </button>
+            ))}
+          </div>
+        </TabsPanel>
+      ))}
+    </Tabs>
   );
 }
 

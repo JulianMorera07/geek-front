@@ -22,7 +22,10 @@ export interface ExternalId {
 
 export interface StreamingSource {
   id: string;
+  /** Interno (slug del provider) — no pintar en pantalla, usar `displayName`. */
   providerName: string;
+  /** Nombre de marca pensado para mostrar (ej. "Kitsune", "Ronin", "Sakura") — mismo campo que `providerDisplayName` en `PlaybackSource`. */
+  displayName: string;
   externalRef: string;
   quality: string;
   audioLanguage: string;
